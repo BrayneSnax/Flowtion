@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Menu } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import Sidebar from "@/components/Sidebar";
 import Editor from "@/components/Editor";
 import axios from "axios";
@@ -22,7 +24,7 @@ export default function Workspace({ onLogout }) {
   const navigate = useNavigate();
   const [pages, setPages] = useState([]);
   const [currentPage, setCurrentPage] = useState(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -67,6 +69,7 @@ export default function Workspace({ onLogout }) {
       });
       setPages([...pages, response.data]);
       navigate(`/page/${response.data.id}`);
+      setSidebarOpen(false);
       toast.success("Page created");
     } catch (error) {
       toast.error("Failed to create page");
@@ -122,18 +125,49 @@ export default function Workspace({ onLogout }) {
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 overflow-hidden">
-      <Sidebar
-        pages={pages}
-        currentPageId={currentPage?.id}
-        onPageSelect={(id) => navigate(`/page/${id}`)}
-        onPageCreate={createPage}
-        onPageUpdate={updatePage}
-        onPageDelete={deletePage}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        onLogout={handleLogout}
-      />
+      {/* Mobile Menu Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="fixed top-4 left-4 z-50 lg:hidden bg-white shadow-md"
+        data-testid="mobile-menu-button"
+      >
+        <Menu size={20} />
+      </Button>
+
+      {/* Sidebar Overlay for Mobile */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          data-testid="sidebar-overlay"
+        />
+      )}
+
+      {/* Sidebar */}
+      <div
+        className={`fixed lg:relative inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-in-out ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } lg:translate-x-0`}
+      >
+        <Sidebar
+          pages={pages}
+          currentPageId={currentPage?.id}
+          onPageSelect={(id) => {
+            navigate(`/page/${id}`);
+            setSidebarOpen(false);
+          }}
+          onPageCreate={createPage}
+          onPageUpdate={updatePage}
+          onPageDelete={deletePage}
+          collapsed={false}
+          onToggleCollapse={() => setSidebarOpen(false)}
+          onLogout={handleLogout}
+        />
+      </div>
       
+      {/* Main Editor Area */}
       <div className="flex-1 overflow-hidden">
         {currentPage ? (
           <Editor
@@ -142,8 +176,8 @@ export default function Workspace({ onLogout }) {
             axiosInstance={axiosInstance}
           />
         ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
+          <div className="flex items-center justify-center h-full px-4">
+            <div className="text-center max-w-md">
               <div className="text-6xl mb-4">📝</div>
               <h2 className="text-2xl font-semibold text-slate-700 mb-2">No pages yet</h2>
               <p className="text-slate-500 mb-6">Create your first page to get started</p>

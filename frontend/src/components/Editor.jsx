@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, Plus, Trash2, GripVertical, Menu as MenuIcon, Clock } from "lucide-react";
+import { Sparkles, Plus, Trash2, GripVertical, Menu as MenuIcon, Clock, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -95,7 +95,6 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
       const afterBlock = afterBlockId ? blocks.find(b => b.id === afterBlockId) : null;
       const order = afterBlock ? afterBlock.order + 1 : blocks.length;
       
-      // Reorder blocks after insertion point
       if (afterBlock) {
         const blocksToUpdate = blocks.filter(b => b.order >= order);
         for (const block of blocksToUpdate) {
@@ -111,11 +110,8 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
       };
       
       const response = await axiosInstance.post(`${API}/blocks`, newBlock);
-      
-      // Reload to get correct order
       await loadBlocks();
       
-      // Focus new block
       setTimeout(() => {
         if (blockRefs.current[response.data.id]) {
           blockRefs.current[response.data.id].focus();
@@ -131,7 +127,7 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
       const response = await axiosInstance.patch(`${API}/blocks/${blockId}`, updates);
       setBlocks(blocks.map(b => b.id === blockId ? response.data : b));
     } catch (error) {
-      toast.error("Failed to update block");
+      console.error("Failed to update block", error);
     }
   };
 
@@ -144,13 +140,14 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
     }
   };
 
-  const handleKeyDown = (e, blockId) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+  const handleKeyDown = (e, blockId, blockType) => {
+    if (e.key === 'Enter' && !e.shiftKey && blockType !== 'code') {
       e.preventDefault();
       addBlock('paragraph', blockId);
     } else if (e.key === 'Backspace') {
       const block = blocks.find(b => b.id === blockId);
-      if (block && !block.content) {
+      const isEmpty = !block.content || (typeof block.content === 'object' && !block.content.text && !block.content.title);
+      if (block && isEmpty) {
         e.preventDefault();
         deleteBlock(blockId);
       }
@@ -158,7 +155,6 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
   };
 
   const handleInputChange = (blockId, value) => {
-    // Check for / command
     if (value.startsWith('/')) {
       setCommandOpen(true);
       setCommandBlockId(blockId);
@@ -169,7 +165,10 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
 
   const handleCommandSelect = async (type) => {
     if (commandBlockId) {
-      await updateBlock(commandBlockId, { type, content: type === 'divider' ? null : (type === 'todo' ? { text: '', checked: false } : (type === 'toggle' ? { title: '', content: '', collapsed: true } : '')) });
+      await updateBlock(commandBlockId, { 
+        type, 
+        content: type === 'divider' ? null : (type === 'todo' ? { text: '', checked: false } : (type === 'toggle' ? { title: '', content: '', collapsed: true } : '')) 
+      });
       setCommandOpen(false);
       setCommandBlockId(null);
     }
@@ -195,7 +194,6 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
     if (!draggedBlockObj || !targetBlockObj) return;
 
     try {
-      // Swap orders
       await axiosInstance.patch(`${API}/blocks/${draggedBlock}`, { order: targetBlockObj.order });
       await axiosInstance.patch(`${API}/blocks/${targetBlockId}`, { order: draggedBlockObj.order });
       
@@ -248,43 +246,43 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
     switch (block.type) {
       case 'heading1':
         return (
-          <Input
+          <input
             ref={(el) => (blockRefs.current[block.id] = el)}
             value={block.content || ''}
             onChange={(e) => handleInputChange(block.id, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, block.id)}
+            onKeyDown={(e) => handleKeyDown(e, block.id, 'heading1')}
             placeholder="Heading 1"
-            className="text-4xl font-bold border-none shadow-none focus-visible:ring-0 px-0 h-auto"
+            className="w-full text-3xl sm:text-4xl font-bold border-none outline-none bg-transparent"
             data-testid={`block-input-${block.id}`}
           />
         );
       case 'heading2':
         return (
-          <Input
+          <input
             ref={(el) => (blockRefs.current[block.id] = el)}
             value={block.content || ''}
             onChange={(e) => handleInputChange(block.id, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, block.id)}
+            onKeyDown={(e) => handleKeyDown(e, block.id, 'heading2')}
             placeholder="Heading 2"
-            className="text-3xl font-semibold border-none shadow-none focus-visible:ring-0 px-0 h-auto"
+            className="w-full text-2xl sm:text-3xl font-semibold border-none outline-none bg-transparent"
             data-testid={`block-input-${block.id}`}
           />
         );
       case 'heading3':
         return (
-          <Input
+          <input
             ref={(el) => (blockRefs.current[block.id] = el)}
             value={block.content || ''}
             onChange={(e) => handleInputChange(block.id, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, block.id)}
+            onKeyDown={(e) => handleKeyDown(e, block.id, 'heading3')}
             placeholder="Heading 3"
-            className="text-2xl font-semibold border-none shadow-none focus-visible:ring-0 px-0 h-auto"
+            className="w-full text-xl sm:text-2xl font-semibold border-none outline-none bg-transparent"
             data-testid={`block-input-${block.id}`}
           />
         );
       case 'code':
         return (
-          <Textarea
+          <textarea
             ref={(el) => (blockRefs.current[block.id] = el)}
             value={block.content || ''}
             onChange={(e) => handleInputChange(block.id, e.target.value)}
@@ -295,20 +293,20 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
               }
             }}
             placeholder="// Code here"
-            className="font-mono text-sm bg-slate-100 min-h-[100px]"
+            className="w-full font-mono text-sm bg-slate-100 rounded p-3 min-h-[100px] border-none outline-none resize-y"
             data-testid={`block-input-${block.id}`}
           />
         );
       case 'quote':
         return (
           <div className="border-l-4 border-blue-500 pl-4 italic">
-            <Input
+            <input
               ref={(el) => (blockRefs.current[block.id] = el)}
               value={block.content || ''}
               onChange={(e) => handleInputChange(block.id, e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, block.id)}
+              onKeyDown={(e) => handleKeyDown(e, block.id, 'quote')}
               placeholder="Quote"
-              className="border-none shadow-none focus-visible:ring-0 px-0"
+              className="w-full border-none outline-none bg-transparent"
               data-testid={`block-input-${block.id}`}
             />
           </div>
@@ -320,28 +318,28 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => toggleCollapse(block.id)}
-                className="text-slate-500 hover:text-slate-700 transition-transform"
+                className="text-slate-500 hover:text-slate-700 transition-transform flex-shrink-0"
                 style={{ transform: isCollapsed ? 'rotate(0deg)' : 'rotate(90deg)' }}
               >
-                ▸
+                <ChevronRight size={16} />
               </button>
-              <Input
+              <input
                 ref={(el) => (blockRefs.current[block.id] = el)}
                 value={block.content?.title || ''}
                 onChange={(e) => handleContentChange({ ...block.content, title: e.target.value })}
-                onKeyDown={(e) => handleKeyDown(e, block.id)}
+                onKeyDown={(e) => handleKeyDown(e, block.id, 'toggle')}
                 placeholder="Toggle"
-                className="border-none shadow-none focus-visible:ring-0 px-0 font-medium"
+                className="flex-1 border-none outline-none bg-transparent font-medium"
                 data-testid={`block-input-${block.id}`}
               />
             </div>
             {!isCollapsed && (
               <div className="ml-6 mt-2">
-                <Textarea
+                <textarea
                   value={block.content?.content || ''}
                   onChange={(e) => handleContentChange({ ...block.content, content: e.target.value })}
                   placeholder="Hidden content..."
-                  className="border-none shadow-none focus-visible:ring-0 px-0 resize-none min-h-[60px]"
+                  className="w-full border-none outline-none bg-transparent resize-none min-h-[60px]"
                 />
               </div>
             )}
@@ -354,16 +352,16 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
               type="checkbox"
               checked={block.content?.checked || false}
               onChange={(e) => handleContentChange({ ...block.content, checked: e.target.checked })}
-              className="mt-1 w-4 h-4 rounded border-slate-300"
+              className="mt-1 w-4 h-4 rounded border-slate-300 flex-shrink-0"
               data-testid={`todo-checkbox-${block.id}`}
             />
-            <Input
+            <input
               ref={(el) => (blockRefs.current[block.id] = el)}
               value={block.content?.text || ''}
               onChange={(e) => handleContentChange({ ...block.content, text: e.target.value })}
-              onKeyDown={(e) => handleKeyDown(e, block.id)}
+              onKeyDown={(e) => handleKeyDown(e, block.id, 'todo')}
               placeholder="To-do"
-              className="border-none shadow-none focus-visible:ring-0 px-0"
+              className="flex-1 border-none outline-none bg-transparent"
               data-testid={`block-input-${block.id}`}
             />
           </div>
@@ -373,14 +371,14 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
       case 'bulletList':
         return (
           <div className="flex items-start gap-3">
-            <span className="text-xl mt-0.5">•</span>
-            <Input
+            <span className="text-xl mt-0.5 flex-shrink-0">•</span>
+            <input
               ref={(el) => (blockRefs.current[block.id] = el)}
               value={block.content || ''}
               onChange={(e) => handleInputChange(block.id, e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, block.id)}
+              onKeyDown={(e) => handleKeyDown(e, block.id, 'bulletList')}
               placeholder="List item"
-              className="border-none shadow-none focus-visible:ring-0 px-0"
+              className="flex-1 border-none outline-none bg-transparent"
               data-testid={`block-input-${block.id}`}
             />
           </div>
@@ -389,21 +387,21 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
         const index = blocks.filter(b => b.type === 'numberedList' && b.order <= block.order).length;
         return (
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 font-medium">{index}.</span>
-            <Input
+            <span className="mt-0.5 font-medium flex-shrink-0">{index}.</span>
+            <input
               ref={(el) => (blockRefs.current[block.id] = el)}
               value={block.content || ''}
               onChange={(e) => handleInputChange(block.id, e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, block.id)}
+              onKeyDown={(e) => handleKeyDown(e, block.id, 'numberedList')}
               placeholder="List item"
-              className="border-none shadow-none focus-visible:ring-0 px-0"
+              className="flex-1 border-none outline-none bg-transparent"
               data-testid={`block-input-${block.id}`}
             />
           </div>
         );
       default:
         return (
-          <Textarea
+          <textarea
             ref={(el) => (blockRefs.current[block.id] = el)}
             value={block.content || ''}
             onChange={(e) => handleInputChange(block.id, e.target.value)}
@@ -416,8 +414,8 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
                 deleteBlock(block.id);
               }
             }}
-            placeholder="Type '/' for commands..."
-            className="border-none shadow-none focus-visible:ring-0 px-0 resize-none min-h-[40px]"
+            placeholder="Type '/' for commands or just start writing..."
+            className="w-full border-none outline-none bg-transparent resize-none min-h-[40px]"
             rows={1}
             data-testid={`block-input-${block.id}`}
           />
@@ -435,11 +433,12 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
 
   return (
     <div className="h-full flex flex-col bg-white">
-      <div className="border-b border-slate-200 px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3 flex-1">
-          <span className="text-4xl">{page.icon}</span>
+      {/* Header */}
+      <div className="border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+          <span className="text-3xl sm:text-4xl flex-shrink-0">{page.icon}</span>
           {editingTitle ? (
-            <Input
+            <input
               ref={titleInputRef}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -451,40 +450,38 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
                   setEditingTitle(false);
                 }
               }}
-              className="text-3xl font-bold border-none shadow-none focus-visible:ring-0 px-0"
+              className="text-2xl sm:text-3xl font-bold border-none outline-none bg-transparent flex-1 min-w-0"
               data-testid="page-title-input"
             />
           ) : (
             <h1
               onClick={() => setEditingTitle(true)}
-              className="text-3xl font-bold cursor-pointer hover:bg-slate-50 px-2 py-1 rounded"
+              className="text-2xl sm:text-3xl font-bold cursor-pointer hover:bg-slate-50 px-2 py-1 rounded flex-1 min-w-0 truncate"
               data-testid="page-title"
             >
               {page.title}
             </h1>
           )}
-          <div className="flex items-center gap-2 text-xs text-slate-400 ml-4">
-            <Clock size={14} />
-            <span>Edited {new Date(page.updated_at).toLocaleDateString()}</span>
-          </div>
         </div>
         
         <Button
           onClick={() => setAiDialogOpen(true)}
-          className="gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+          size="sm"
+          className="gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 flex-shrink-0"
           data-testid="ai-assist-button"
         >
           <Sparkles size={16} />
-          AI Assist
+          <span className="hidden sm:inline">AI</span>
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 py-6">
+      {/* Editor */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6">
         <div className="max-w-3xl mx-auto space-y-2">
           {blocks.map((block) => (
             <div
               key={block.id}
-              className="block-container group relative"
+              className="block-container group relative py-1"
               draggable={block.type !== 'divider'}
               onDragStart={(e) => handleDragStart(e, block.id)}
               onDragOver={handleDragOver}
@@ -500,7 +497,10 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
                 </button>
                 <Select
                   value={block.type}
-                  onValueChange={(type) => updateBlock(block.id, { type, content: type === 'divider' ? null : (type === 'todo' ? { text: '', checked: false } : (type === 'toggle' ? { title: '', content: '', collapsed: true } : '')) })}
+                  onValueChange={(type) => updateBlock(block.id, { 
+                    type, 
+                    content: type === 'divider' ? null : (type === 'todo' ? { text: '', checked: false } : (type === 'toggle' ? { title: '', content: '', collapsed: true } : '')) 
+                  })}
                 >
                   <SelectTrigger className="w-[32px] h-[26px] p-0 border-none shadow-none hover:bg-slate-200 z-10">
                     <div className="text-xs px-1 pointer-events-none" data-testid={`block-type-trigger-${block.id}`}>
@@ -541,14 +541,14 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
             data-testid="add-block-button"
           >
             <Plus size={16} />
-            Add a block or type '/' for commands
+            <span className="text-sm">Add a block or press Enter</span>
           </Button>
         </div>
       </div>
 
       {/* Command Palette */}
       <Dialog open={commandOpen} onOpenChange={setCommandOpen}>
-        <DialogContent className="p-0" data-testid="command-palette">
+        <DialogContent className="p-0 max-w-md" data-testid="command-palette">
           <Command className="rounded-lg border-none">
             <CommandInput placeholder="Type a command or search..." />
             <CommandList>
@@ -573,7 +573,7 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
 
       {/* AI Dialog */}
       <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
-        <DialogContent data-testid="ai-dialog">
+        <DialogContent className="max-w-md" data-testid="ai-dialog">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="text-purple-600" />
