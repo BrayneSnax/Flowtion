@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import Sidebar from "@/components/Sidebar";
-import Editor from "@/components/Editor";
 import axios from "axios";
 import { toast } from "sonner";
+import FrequencySelector from "@/components/FrequencySelector";
+import UnifiedSurface from "@/components/UnifiedSurface";
+import ConstellationView from "@/components/ConstellationView";
+import { Toaster } from "@/components/ui/sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -22,28 +22,49 @@ axiosInstance.interceptors.request.use((config) => {
 export default function Workspace({ onLogout }) {
   const { pageId } = useParams();
   const navigate = useNavigate();
+  const [frequency, setFrequency] = useState(null);
+  const [viewMode, setViewMode] = useState('surface'); // surface or constellation
   const [pages, setPages] = useState([]);
   const [currentPage, setCurrentPage] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [recentPages, setRecentPages] = useState([]);
+  const [callingPages, setCallingPages] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const storedFrequency = sessionStorage.getItem('frequency');
+    if (storedFrequency) {
+      setFrequency(storedFrequency);
+    }
     loadPages();
   }, []);
 
   useEffect(() => {
+    if (frequency) {
+      sessionStorage.setItem('frequency', frequency);
+    }
+  }, [frequency]);
+
+  useEffect(() => {
     if (pageId) {
       loadPage(pageId);
-    } else if (pages.length > 0) {
-      const firstPage = pages.find(p => !p.parent_id) || pages[0];
-      navigate(`/page/${firstPage.id}`, { replace: true });
+    } else if (pages.length > 0 && frequency) {
+      // Auto-select based on frequency
+      suggestPage();
     }
-  }, [pageId, pages]);
+  }, [pageId, pages, frequency]);
 
   const loadPages = async () => {
     try {
       const response = await axiosInstance.get(`${API}/pages`);
-      setPages(response.data);
+      const activePages = response.data.filter(p => !p.dissolved_at);
+      setPages(activePages);
+      
+      // Sort by recency for recent pages
+      const sorted = [...activePages].sort((a, b) => 
+        new Date(b.last_viewed_at || b.updated_at) - new Date(a.last_viewed_at || a.updated_at)
+      );
+      setRecentPages(sorted.slice(0, 5));
+      
     } catch (error) {
       toast.error("Failed to load pages");
     } finally {
@@ -55,22 +76,53 @@ export default function Workspace({ onLogout }) {
     try {
       const response = await axiosInstance.get(`${API}/pages/${id}`);
       setCurrentPage(response.data);
+      
+      // Load related pages (what's calling you)
+      loadRelatedPages(id);
     } catch (error) {
       toast.error("Failed to load page");
     }
   };
 
-  const createPage = async (parentId = null) => {
+  const loadRelatedPages = async (id) => {
+    try {
+      const response = await axiosInstance.get(`${API}/pages/${id}/related`);
+      // Parse AI response to extract page suggestions
+      setCallingPages([]);
+    } catch (error) {
+      console.error("Could not load related pages", error);
+    }
+  };
+
+  const suggestPage = () => {
+    // Suggest page based on frequency
+    const frequencyStateMap = {
+      focus: ['active', 'germinating'],
+      dream: ['germinating', 'turbulent'],
+      reflect: ['cooling', 'crystallized'],
+      synthesize: ['turbulent', 'active']
+    };
+    
+    const targetStates = frequencyStateMap[frequency] || ['active'];
+    const matchingPages = pages.filter(p => targetStates.includes(p.state));
+    
+    if (matchingPages.length > 0) {
+      const suggested = matchingPages[0];
+      navigate(`/page/${suggested.id}`, { replace: true });
+    } else if (pages.length > 0) {
+      navigate(`/page/${pages[0].id}`, { replace: true });
+    }
+  };
+
+  const createPage = async (state = 'germinating') => {
     try {
       const response = await axiosInstance.post(`${API}/pages`, {
         title: "Untitled",
-        icon: "📄",
-        parent_id: parentId
+        icon: "🌱",
+        state
       });
       setPages([...pages, response.data]);
       navigate(`/page/${response.data.id}`);
-      setSidebarOpen(false);
-      toast.success("Page created");
     } catch (error) {
       toast.error("Failed to create page");
     }
@@ -88,10 +140,10 @@ export default function Workspace({ onLogout }) {
     }
   };
 
-  const deletePage = async (id) => {
+  const dissolvePage = async (id) => {
     try {
       await axiosInstance.delete(`${API}/pages/${id}`);
-      setPages(pages.filter(p => p.id !== id && p.parent_id !== id));
+      setPages(pages.filter(p => p.id !== id));
       
       if (currentPage?.id === id) {
         const remainingPages = pages.filter(p => p.id !== id);
@@ -102,17 +154,17 @@ export default function Workspace({ onLogout }) {
         }
       }
       
-      toast.success("Page deleted");
+      toast.success("Page dissolved");
     } catch (error) {
-      toast.error("Failed to delete page");
+      toast.error("Failed to dissolve page");
     }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    sessionStorage.removeItem('frequency');
     onLogout();
-    toast.success("Logged out successfully");
   };
 
   if (loading) {
@@ -123,75 +175,48 @@ export default function Workspace({ onLogout }) {
     );
   }
 
+  // Show frequency selector if not set
+  if (!frequency) {
+    return (
+      <div className="h-screen">
+        <FrequencySelector onSelect={setFrequency} />
+        <Toaster />
+      </div>
+    );
+  }
+
+  // Show appropriate view
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 overflow-hidden">
-      {/* Mobile Menu Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed top-4 left-4 z-50 lg:hidden bg-white shadow-md"
-        data-testid="mobile-menu-button"
-      >
-        <Menu size={20} />
-      </Button>
-
-      {/* Sidebar Overlay for Mobile */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-          data-testid="sidebar-overlay"
-        />
-      )}
-
-      {/* Sidebar */}
-      <div
-        className={`fixed lg:relative inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0`}
-      >
-        <Sidebar
+    <div className="h-screen overflow-hidden">
+      {viewMode === 'constellation' ? (
+        <ConstellationView
           pages={pages}
           currentPageId={currentPage?.id}
           onPageSelect={(id) => {
+            setViewMode('surface');
             navigate(`/page/${id}`);
-            setSidebarOpen(false);
           }}
+          onClose={() => setViewMode('surface')}
+          frequency={frequency}
+        />
+      ) : (
+        <UnifiedSurface
+          page={currentPage}
+          pages={pages}
+          recentPages={recentPages}
+          callingPages={callingPages}
+          frequency={frequency}
           onPageCreate={createPage}
           onPageUpdate={updatePage}
-          onPageDelete={deletePage}
-          collapsed={false}
-          onToggleCollapse={() => setSidebarOpen(false)}
+          onPageDissolve={dissolvePage}
+          onPageSelect={(id) => navigate(`/page/${id}`)}
+          onViewConstellation={() => setViewMode('constellation')}
+          onChangeFrequency={() => setFrequency(null)}
           onLogout={handleLogout}
+          axiosInstance={axiosInstance}
         />
-      </div>
-      
-      {/* Main Editor Area */}
-      <div className="flex-1 overflow-hidden">
-        {currentPage ? (
-          <Editor
-            page={currentPage}
-            onPageUpdate={updatePage}
-            axiosInstance={axiosInstance}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full px-4">
-            <div className="text-center max-w-md">
-              <div className="text-6xl mb-4">📝</div>
-              <h2 className="text-2xl font-semibold text-slate-700 mb-2">No pages yet</h2>
-              <p className="text-slate-500 mb-6">Create your first page to get started</p>
-              <button
-                onClick={() => createPage()}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 font-medium"
-                data-testid="create-first-page-button"
-              >
-                Create Page
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
+      <Toaster />
     </div>
   );
 }
