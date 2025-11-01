@@ -171,7 +171,7 @@ export default function Sidebar({
           <Button
             variant="ghost"
             size="icon"
-            onClick={onTogout}
+            onClick={onToggleCollapse}
             className="flex-shrink-0"
             data-testid="sidebar-collapse-button"
           >
