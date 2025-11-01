@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Sparkles, Search, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +9,14 @@ import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+const stateGradients = {
+  germinating: "from-green-50 to-emerald-50",
+  active: "from-orange-50 to-red-50",
+  cooling: "from-blue-50 to-cyan-50",
+  crystallized: "from-slate-50 to-gray-50",
+  turbulent: "from-purple-50 to-pink-50"
+};
 
 export default function Auth({ onAuth }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -29,7 +38,7 @@ export default function Auth({ onAuth }) {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
-      toast.success(isLogin ? "Welcome back!" : "Account created successfully!");
+      toast.success(isLogin ? "Welcome back" : "Workspace created");
       onAuth();
     } catch (error) {
       toast.error(error.response?.data?.detail || "Authentication failed");
@@ -42,17 +51,38 @@ export default function Auth({ onAuth }) {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8 content-fade-in">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-3">
-            Notex
-          </h1>
-          <p className="text-slate-600 text-lg">Your intuitive workspace</p>
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <Layers className="w-12 h-12 text-indigo-600" />
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">
+              Notex
+            </h1>
+          </div>
+          <p className="text-slate-600 text-lg">Your intuitive, non-linear workspace</p>
+          <div className="flex items-center justify-center gap-2 mt-4 text-xs text-slate-500">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-green-500"></span>
+              Germinating
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+              Active
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+              Cooling
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+              Crystallized
+            </span>
+          </div>
         </div>
 
         <Card className="shadow-xl border-slate-200/60 backdrop-blur-sm bg-white/80 content-fade-in">
           <CardHeader>
-            <CardTitle className="text-2xl">{isLogin ? "Welcome back" : "Create account"}</CardTitle>
+            <CardTitle className="text-2xl">{isLogin ? "Welcome back" : "Create workspace"}</CardTitle>
             <CardDescription>
-              {isLogin ? "Sign in to your workspace" : "Start your journey with Notex"}
+              {isLogin ? "Enter your flow" : "Begin your journey"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -64,7 +94,7 @@ export default function Auth({ onAuth }) {
                     id="name"
                     data-testid="name-input"
                     type="text"
-                    placeholder="John Doe"
+                    placeholder="Your name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required={!isLogin}
@@ -107,7 +137,7 @@ export default function Auth({ onAuth }) {
                 disabled={loading}
                 data-testid="auth-submit-button"
               >
-                {loading ? "Loading..." : (isLogin ? "Sign in" : "Create account")}
+                {loading ? "Loading..." : (isLogin ? "Enter" : "Create workspace")}
               </Button>
             </form>
 
@@ -118,11 +148,15 @@ export default function Auth({ onAuth }) {
                 className="text-blue-600 hover:text-blue-700 font-medium"
                 data-testid="toggle-auth-mode"
               >
-                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+                {isLogin ? "New here? Create workspace" : "Already have a workspace? Enter"}
               </button>
             </div>
           </CardContent>
         </Card>
+
+        <div className="mt-6 text-center text-xs text-slate-500">
+          <p>Powered by resonance, not hierarchy</p>
+        </div>
       </div>
     </div>
   );
