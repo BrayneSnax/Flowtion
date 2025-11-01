@@ -301,8 +301,8 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-3xl mx-auto space-y-2">
           {blocks.map((block) => (
-            <div key={block.id} className="block-container group">
-              <div className="block-actions flex gap-1">
+            <div key={block.id} className="block-container group relative">
+              <div className="block-actions flex gap-1 z-10">
                 <button
                   className="p-1 hover:bg-slate-200 rounded cursor-grab"
                   data-testid={`block-grip-${block.id}`}
@@ -313,12 +313,12 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
                   value={block.type}
                   onValueChange={(type) => updateBlock(block.id, { type })}
                 >
-                  <SelectTrigger className="w-[32px] h-[26px] p-0 border-none shadow-none hover:bg-slate-200">
-                    <div className="text-xs px-1" data-testid={`block-type-trigger-${block.id}`}>
+                  <SelectTrigger className="w-[32px] h-[26px] p-0 border-none shadow-none hover:bg-slate-200 z-10">
+                    <div className="text-xs px-1 pointer-events-none" data-testid={`block-type-trigger-${block.id}`}>
                       <MenuIcon size={14} />
                     </div>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-50">
                     {BLOCK_TYPES.map((type) => (
                       <SelectItem key={type.value} value={type.value} data-testid={`block-type-${type.value}`}>
                         <span className="flex items-center gap-2">
