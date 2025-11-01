@@ -1,0 +1,143 @@
+{
+  "timestamp": "2025-11-01T11:51:50.482249",
+  "total_tests": 27,
+  "passed_tests": 26,
+  "success_rate": 0.9629629629629629,
+  "results": [
+    {
+      "test": "User Registration",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "User Login (existing user)",
+      "success": false,
+      "details": "Expected 200, got 401 - Invalid credentials"
+    },
+    {
+      "test": "Get Current User",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Create Page",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Get All Pages",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Get Specific Page",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Update Page",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Create Nested Page",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Delete Nested Page",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Delete Page",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Create Page for Blocks",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Create paragraph Block",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Create heading1 Block",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Create todo Block",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Create code Block",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Create divider Block",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Get Page Blocks",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Update Block",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Delete Block 84074bca",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Delete Block 23ae73aa",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Delete Block 92fdb58d",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Delete Block 83dd9757",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Delete Block 9129dabc",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Delete Block Test Page",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "AI Assist - complete",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "AI Assist - improve",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "AI Assist - summarize",
+      "success": true,
+      "details": ""
+    }
+  ]
+}
