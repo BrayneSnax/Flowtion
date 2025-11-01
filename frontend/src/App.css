@@ -1,34 +1,137 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+.editor-content {
+  max-width: 100%;
+  line-height: 1.6;
 }
 
-.App-link {
-    color: #61dafb;
+.editor-content p {
+  margin: 4px 0;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.editor-content h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 16px 0 8px;
+}
+
+.editor-content h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+.editor-content h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 10px 0 5px;
+}
+
+.editor-content ul,
+.editor-content ol {
+  padding-left: 24px;
+  margin: 4px 0;
+}
+
+.editor-content li {
+  margin: 2px 0;
+}
+
+.editor-content code {
+  background: #f3f4f6;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  display: block;
+  white-space: pre-wrap;
+  margin: 8px 0;
+}
+
+.block-container {
+  position: relative;
+  padding: 4px 0;
+}
+
+.block-container:hover .block-actions {
+  opacity: 1;
+}
+
+.block-actions {
+  position: absolute;
+  left: -40px;
+  top: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.page-tree-item {
+  position: relative;
+  user-select: none;
+}
+
+.page-tree-item:hover .page-actions {
+  opacity: 1;
+}
+
+.page-actions {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.content-fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-in {
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
