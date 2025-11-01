@@ -64,24 +64,28 @@ class Page(BaseModel):
     title: str = "Untitled"
     icon: Optional[str] = "📄"
     parent_id: Optional[str] = None
+    state: str = "germinating"  # germinating, active, cooling, crystallized, turbulent
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    last_viewed_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class PageCreate(BaseModel):
     title: str = "Untitled"
     icon: Optional[str] = "📄"
     parent_id: Optional[str] = None
+    state: Optional[str] = "germinating"
 
 class PageUpdate(BaseModel):
     title: Optional[str] = None
     icon: Optional[str] = None
     parent_id: Optional[str] = None
+    state: Optional[str] = None
 
 class Block(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     page_id: str
-    type: str  # paragraph, heading1, heading2, heading3, bulletList, numberedList, todo, code, image, divider, table
+    type: str
     content: Any
     order: int
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -100,10 +104,18 @@ class BlockUpdate(BaseModel):
 
 class AIRequest(BaseModel):
     prompt: str
-    action: str  # complete, improve, summarize
+    action: str  # complete, improve, summarize, query
 
 class AIResponse(BaseModel):
     result: str
+
+class SemanticSearchRequest(BaseModel):
+    query: str
+
+class RelatedPage(BaseModel):
+    page: Page
+    relevance: float
+    reason: str
 
 # ==================== Auth Helpers ====================
 
@@ -137,7 +149,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 @api_router.get("/")
 async def root():
-    return {"message": "Notion-like API"}
+    return {"message": "Notex API - Intuitive Workspace"}
 
 # Auth Routes
 @api_router.post("/auth/register", response_model=TokenResponse)
@@ -197,6 +209,14 @@ async def get_page(page_id: str, user_id: str = Depends(get_current_user)):
     page = await db.pages.find_one({"id": page_id, "user_id": user_id}, {"_id": 0})
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")
+    
+    # Update last_viewed_at
+    await db.pages.update_one(
+        {"id": page_id},
+        {"$set": {"last_viewed_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    page['last_viewed_at'] = datetime.now(timezone.utc).isoformat()
+    
     return page
 
 @api_router.patch("/pages/{page_id}", response_model=Page)
@@ -219,16 +239,37 @@ async def delete_page(page_id: str, user_id: str = Depends(get_current_user)):
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")
     
-    # Delete page and its blocks
-    await db.pages.delete_one({"id": page_id})
-    await db.blocks.delete_many({"page_id": page_id})
+    # Soft delete - mark as dissolved
+    await db.pages.update_one(
+        {"id": page_id},
+        {"$set": {
+            "dissolved_at": datetime.now(timezone.utc).isoformat(),
+            "state": "dissolved"
+        }}
+    )
     
-    # Delete child pages recursively
-    child_pages = await db.pages.find({"parent_id": page_id}, {"_id": 0}).to_list(1000)
-    for child in child_pages:
-        await delete_page(child['id'], user_id)
+    return {"message": "Page dissolved"}
+
+@api_router.post("/pages/{page_id}/restore")
+async def restore_page(page_id: str, user_id: str = Depends(get_current_user)):
+    page = await db.pages.find_one({"id": page_id, "user_id": user_id})
+    if not page:
+        raise HTTPException(status_code=404, detail="Page not found")
     
-    return {"message": "Page deleted"}
+    await db.pages.update_one(
+        {"id": page_id},
+        {"$unset": {"dissolved_at": ""}, "$set": {"state": "active"}}
+    )
+    
+    return {"message": "Page restored"}
+
+@api_router.get("/pages/dissolved/list", response_model=List[Page])
+async def get_dissolved_pages(user_id: str = Depends(get_current_user)):
+    pages = await db.pages.find(
+        {"user_id": user_id, "dissolved_at": {"$exists": True}},
+        {"_id": 0}
+    ).to_list(1000)
+    return pages
 
 # Block Routes
 @api_router.post("/blocks", response_model=Block)
@@ -239,6 +280,13 @@ async def create_block(data: BlockCreate, user_id: str = Depends(get_current_use
     
     block = Block(**data.model_dump())
     await db.blocks.insert_one(block.model_dump())
+    
+    # Update page's updated_at and suggest state change
+    await db.pages.update_one(
+        {"id": data.page_id},
+        {"$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
     return block
 
 @api_router.get("/blocks/{page_id}", response_model=List[Block])
@@ -264,6 +312,10 @@ async def update_block(block_id: str, data: BlockUpdate, user_id: str = Depends(
     update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
     
     await db.blocks.update_one({"id": block_id}, {"$set": update_data})
+    await db.pages.update_one(
+        {"id": block['page_id']},
+        {"$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
     
     updated_block = await db.blocks.find_one({"id": block_id}, {"_id": 0})
     return updated_block
@@ -310,6 +362,95 @@ async def ai_assist(data: AIRequest, user_id: str = Depends(get_current_user)):
     except Exception as e:
         logging.error(f"AI assist error: {str(e)}")
         raise HTTPException(status_code=500, detail="AI service error")
+
+# Semantic Search
+@api_router.post("/ai/search")
+async def semantic_search(data: SemanticSearchRequest, user_id: str = Depends(get_current_user)):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI service not configured")
+    
+    try:
+        # Get all user's pages
+        pages = await db.pages.find(
+            {"user_id": user_id, "dissolved_at": {"$exists": False}},
+            {"_id": 0}
+        ).to_list(1000)
+        
+        if not pages:
+            return {"results": []}
+        
+        # Get blocks for each page
+        pages_with_content = []
+        for page in pages:
+            blocks = await db.blocks.find({"page_id": page['id']}, {"_id": 0}).to_list(1000)
+            content = " ".join([str(b.get('content', '')) for b in blocks if b.get('content')])
+            pages_with_content.append({
+                "page": page,
+                "content": content[:500]  # Limit content length
+            })
+        
+        # Use AI to find relevant pages
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"search_{user_id}",
+            system_message="You are a semantic search assistant. Analyze pages and find the most relevant ones based on the query. Return a JSON array with page IDs and relevance scores."
+        ).with_model("openai", "gpt-4o")
+        
+        pages_context = "\n".join([
+            f"Page: {p['page']['title']} (ID: {p['page']['id']}, State: {p['page'].get('state', 'unknown')})\nContent: {p['content'][:200]}..."
+            for p in pages_with_content[:10]  # Limit to 10 pages for context
+        ])
+        
+        prompt = f"Query: {data.query}\n\nPages:\n{pages_context}\n\nReturn the top 3 most relevant page IDs with brief reasons why they match the query."
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        return {"results": response, "total_pages": len(pages)}
+    except Exception as e:
+        logging.error(f"Semantic search error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Search service error")
+
+# Related Pages (Resonance)
+@api_router.get("/pages/{page_id}/related")
+async def get_related_pages(page_id: str, user_id: str = Depends(get_current_user)):
+    if not EMERGENT_LLM_KEY:
+        return {"related": []}
+    
+    try:
+        # Get current page
+        current_page = await db.pages.find_one({"id": page_id, "user_id": user_id}, {"_id": 0})
+        if not current_page:
+            raise HTTPException(status_code=404, detail="Page not found")
+        
+        current_blocks = await db.blocks.find({"page_id": page_id}, {"_id": 0}).to_list(1000)
+        current_content = " ".join([str(b.get('content', '')) for b in current_blocks if b.get('content')])
+        
+        # Get other pages
+        other_pages = await db.pages.find(
+            {"user_id": user_id, "id": {"$ne": page_id}, "dissolved_at": {"$exists": False}},
+            {"_id": 0}
+        ).limit(20).to_list(20)
+        
+        if not other_pages:
+            return {"related": []}
+        
+        # Use AI to find related pages
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"related_{user_id}",
+            system_message="Find semantically related pages based on content similarity."
+        ).with_model("openai", "gpt-4o")
+        
+        pages_list = "\n".join([f"- {p['title']} (ID: {p['id']})" for p in other_pages])
+        prompt = f"Current page: {current_page['title']}\nContent: {current_content[:300]}\n\nOther pages:\n{pages_list}\n\nWhich 3 pages are most related? Return just the page titles."
+        
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        return {"related": response, "analyzed": len(other_pages)}
+    except Exception as e:
+        logging.error(f"Related pages error: {str(e)}")
+        return {"related": [], "error": str(e)}
 
 app.include_router(api_router)
 
