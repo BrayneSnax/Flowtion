@@ -55,7 +55,7 @@ export default function FrequencySelector({ onSelect }) {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6">
           {frequencies.map((freq) => {
             const Icon = freq.icon;
             const isHovered = hoveredId === freq.id;
@@ -66,31 +66,31 @@ export default function FrequencySelector({ onSelect }) {
                 onClick={() => onSelect(freq.id)}
                 onMouseEnter={() => setHoveredId(freq.id)}
                 onMouseLeave={() => setHoveredId(null)}
-                className={`relative p-8 rounded-2xl border-2 transition-all duration-500 ${
+                className={`relative p-4 sm:p-8 rounded-2xl border-2 transition-all duration-500 ${
                   isHovered 
                     ? 'border-white scale-105 shadow-2xl' 
                     : 'border-slate-700 hover:border-slate-600'
                 } bg-gradient-to-br ${freq.bg} backdrop-blur-sm`}
                 data-testid={`frequency-${freq.id}`}
               >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className={`p-3 rounded-xl bg-gradient-to-br ${freq.color} text-white`}>
-                    <Icon size={28} />
+                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 mb-3 sm:mb-4">
+                  <div className={`p-2 sm:p-3 rounded-xl bg-gradient-to-br ${freq.color} text-white`}>
+                    <Icon size={24} className="sm:w-7 sm:h-7" />
                   </div>
-                  <h2 className="text-2xl font-semibold text-slate-900">
+                  <h2 className="text-lg sm:text-2xl font-semibold text-slate-900">
                     {freq.name}
                   </h2>
                 </div>
                 
-                <p className="text-slate-700 text-sm leading-relaxed">
+                <p className="text-slate-700 text-xs sm:text-sm leading-relaxed">
                   {freq.description}
                 </p>
 
-                <div className={`mt-6 pt-4 border-t border-slate-300 transition-opacity duration-300 ${
+                <div className={`mt-3 sm:mt-6 pt-3 sm:pt-4 border-t border-slate-300 transition-opacity duration-300 ${
                   isHovered ? 'opacity-100' : 'opacity-0'
                 }`}>
                   <p className="text-xs text-slate-600">
-                    Surfaces {freq.states.join(', ')} thoughts
+                    {freq.states.join(', ')}
                   </p>
                 </div>
               </button>
