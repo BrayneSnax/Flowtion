@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronRight, ChevronDown, Plus, MoreHorizontal, Trash2, Menu, X, LogOut, FileText } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronRight, ChevronDown, Plus, MoreHorizontal, Trash2, Menu, X, LogOut, FileText, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,6 +17,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  ScrollArea,
+} from "@/components/ui/scroll-area";
 
 export default function Sidebar({ 
   pages, 
@@ -32,6 +35,24 @@ export default function Sidebar({
   const [expandedPages, setExpandedPages] = useState({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pageToDelete, setPageToDelete] = useState(null);
+  const [recentPages, setRecentPages] = useState([]);
+
+  useEffect(() => {
+    // Track recent pages
+    const stored = localStorage.getItem('recentPages');
+    if (stored) {
+      setRecentPages(JSON.parse(stored));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentPageId) {
+      // Update recent pages
+      const updated = [currentPageId, ...recentPages.filter(id => id !== currentPageId)].slice(0, 5);
+      setRecentPages(updated);
+      localStorage.setItem('recentPages', JSON.stringify(updated));
+    }
+  }, [currentPageId]);
 
   const toggleExpand = (pageId) => {
     setExpandedPages(prev => ({ ...prev, [pageId]: !prev[pageId] }));
@@ -72,10 +93,11 @@ export default function Sidebar({
                   e.stopPropagation();
                   toggleExpand(page.id);
                 }}
-                className="p-0.5 hover:bg-slate-200 rounded"
+                className="p-0.5 hover:bg-slate-200 rounded transition-transform"
+                style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
                 data-testid={`expand-page-${page.id}`}
               >
-                {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                <ChevronRight size={14} />
               </button>
             )}
             {!hasChildren && <div className="w-5" />}
@@ -129,7 +151,7 @@ export default function Sidebar({
           </div>
 
           {hasChildren && isExpanded && (
-            <div className="mt-1">
+            <div className="mt-1 slide-in">
               {renderPageTree(page.id, level + 1)}
             </div>
           )}
@@ -139,6 +161,7 @@ export default function Sidebar({
   };
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const recentPagesData = pages.filter(p => recentPages.includes(p.id)).slice(0, 5);
 
   if (collapsed) {
     return (
@@ -189,6 +212,29 @@ export default function Sidebar({
             New Page
           </Button>
         </div>
+
+        {recentPagesData.length > 0 && (
+          <div className="px-3 py-2 border-b border-slate-200">
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-2 px-2">
+              <Clock size={12} />
+              Recent
+            </div>
+            <ScrollArea className="max-h-32">
+              <div className="space-y-0.5">
+                {recentPagesData.map(page => (
+                  <button
+                    key={page.id}
+                    onClick={() => onPageSelect(page.id)}
+                    className="w-full flex items-center gap-2 px-2 py-1 rounded text-sm hover:bg-slate-100 text-left transition-colors"
+                  >
+                    <span>{page.icon}</span>
+                    <span className="truncate flex-1">{page.title}</span>
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto sidebar-scrollbar p-3">
           <div className="space-y-1">

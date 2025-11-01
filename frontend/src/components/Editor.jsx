@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, Plus, Trash2, GripVertical, Menu as MenuIcon } from "lucide-react";
+import { Sparkles, Plus, Trash2, GripVertical, Menu as MenuIcon, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,21 +17,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 const BLOCK_TYPES = [
-  { value: 'paragraph', label: 'Paragraph', icon: '¶' },
-  { value: 'heading1', label: 'Heading 1', icon: 'H1' },
-  { value: 'heading2', label: 'Heading 2', icon: 'H2' },
-  { value: 'heading3', label: 'Heading 3', icon: 'H3' },
-  { value: 'bulletList', label: 'Bullet List', icon: '•' },
-  { value: 'numberedList', label: 'Numbered List', icon: '1.' },
-  { value: 'todo', label: 'To-do', icon: '☐' },
-  { value: 'code', label: 'Code', icon: '</>' },
-  { value: 'divider', label: 'Divider', icon: '—' },
+  { value: 'paragraph', label: 'Text', icon: '¶', cmd: 'text' },
+  { value: 'heading1', label: 'Heading 1', icon: 'H1', cmd: 'h1' },
+  { value: 'heading2', label: 'Heading 2', icon: 'H2', cmd: 'h2' },
+  { value: 'heading3', label: 'Heading 3', icon: 'H3', cmd: 'h3' },
+  { value: 'bulletList', label: 'Bullet List', icon: '•', cmd: 'bullet' },
+  { value: 'numberedList', label: 'Numbered List', icon: '1.', cmd: 'number' },
+  { value: 'todo', label: 'To-do', icon: '☐', cmd: 'todo' },
+  { value: 'code', label: 'Code', icon: '</>', cmd: 'code' },
+  { value: 'quote', label: 'Quote', icon: '"', cmd: 'quote' },
+  { value: 'divider', label: 'Divider', icon: '—', cmd: 'divider' },
+  { value: 'toggle', label: 'Toggle', icon: '▸', cmd: 'toggle' },
 ];
 
 export default function Editor({ page, onPageUpdate, axiosInstance }) {
@@ -43,7 +53,12 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiAction, setAiAction] = useState("complete");
   const [aiLoading, setAiLoading] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [commandBlockId, setCommandBlockId] = useState(null);
+  const [draggedBlock, setDraggedBlock] = useState(null);
+  const [collapsedToggles, setCollapsedToggles] = useState({});
   const titleInputRef = useRef(null);
+  const blockRefs = useRef({});
 
   useEffect(() => {
     setTitle(page.title);
@@ -75,17 +90,37 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
     setEditingTitle(false);
   };
 
-  const addBlock = async (type = 'paragraph') => {
+  const addBlock = async (type = 'paragraph', afterBlockId = null) => {
     try {
+      const afterBlock = afterBlockId ? blocks.find(b => b.id === afterBlockId) : null;
+      const order = afterBlock ? afterBlock.order + 1 : blocks.length;
+      
+      // Reorder blocks after insertion point
+      if (afterBlock) {
+        const blocksToUpdate = blocks.filter(b => b.order >= order);
+        for (const block of blocksToUpdate) {
+          await axiosInstance.patch(`${API}/blocks/${block.id}`, { order: block.order + 1 });
+        }
+      }
+      
       const newBlock = {
         page_id: page.id,
         type,
-        content: type === 'divider' ? null : (type === 'todo' ? { text: '', checked: false } : ''),
-        order: blocks.length
+        content: type === 'divider' ? null : (type === 'todo' ? { text: '', checked: false } : (type === 'toggle' ? { title: '', content: '', collapsed: true } : '')),
+        order
       };
       
       const response = await axiosInstance.post(`${API}/blocks`, newBlock);
-      setBlocks([...blocks, response.data]);
+      
+      // Reload to get correct order
+      await loadBlocks();
+      
+      // Focus new block
+      setTimeout(() => {
+        if (blockRefs.current[response.data.id]) {
+          blockRefs.current[response.data.id].focus();
+        }
+      }, 100);
     } catch (error) {
       toast.error("Failed to add block");
     }
@@ -109,6 +144,72 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
     }
   };
 
+  const handleKeyDown = (e, blockId) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      addBlock('paragraph', blockId);
+    } else if (e.key === 'Backspace') {
+      const block = blocks.find(b => b.id === blockId);
+      if (block && !block.content) {
+        e.preventDefault();
+        deleteBlock(blockId);
+      }
+    }
+  };
+
+  const handleInputChange = (blockId, value) => {
+    // Check for / command
+    if (value.startsWith('/')) {
+      setCommandOpen(true);
+      setCommandBlockId(blockId);
+    } else {
+      updateBlock(blockId, { content: value });
+    }
+  };
+
+  const handleCommandSelect = async (type) => {
+    if (commandBlockId) {
+      await updateBlock(commandBlockId, { type, content: type === 'divider' ? null : (type === 'todo' ? { text: '', checked: false } : (type === 'toggle' ? { title: '', content: '', collapsed: true } : '')) });
+      setCommandOpen(false);
+      setCommandBlockId(null);
+    }
+  };
+
+  const handleDragStart = (e, blockId) => {
+    setDraggedBlock(blockId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e, targetBlockId) => {
+    e.preventDefault();
+    if (!draggedBlock || draggedBlock === targetBlockId) return;
+
+    const draggedBlockObj = blocks.find(b => b.id === draggedBlock);
+    const targetBlockObj = blocks.find(b => b.id === targetBlockId);
+
+    if (!draggedBlockObj || !targetBlockObj) return;
+
+    try {
+      // Swap orders
+      await axiosInstance.patch(`${API}/blocks/${draggedBlock}`, { order: targetBlockObj.order });
+      await axiosInstance.patch(`${API}/blocks/${targetBlockId}`, { order: draggedBlockObj.order });
+      
+      await loadBlocks();
+      setDraggedBlock(null);
+    } catch (error) {
+      toast.error("Failed to reorder blocks");
+    }
+  };
+
+  const toggleCollapse = (blockId) => {
+    setCollapsedToggles(prev => ({ ...prev, [blockId]: !prev[blockId] }));
+  };
+
   const handleAIAssist = async () => {
     if (!aiPrompt.trim()) return;
     
@@ -119,7 +220,6 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
         action: aiAction
       });
       
-      // Add AI result as a new block
       const newBlock = {
         page_id: page.id,
         type: 'paragraph',
@@ -149,8 +249,10 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
       case 'heading1':
         return (
           <Input
+            ref={(el) => (blockRefs.current[block.id] = el)}
             value={block.content || ''}
-            onChange={(e) => handleContentChange(e.target.value)}
+            onChange={(e) => handleInputChange(block.id, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, block.id)}
             placeholder="Heading 1"
             className="text-4xl font-bold border-none shadow-none focus-visible:ring-0 px-0 h-auto"
             data-testid={`block-input-${block.id}`}
@@ -159,8 +261,10 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
       case 'heading2':
         return (
           <Input
+            ref={(el) => (blockRefs.current[block.id] = el)}
             value={block.content || ''}
-            onChange={(e) => handleContentChange(e.target.value)}
+            onChange={(e) => handleInputChange(block.id, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, block.id)}
             placeholder="Heading 2"
             className="text-3xl font-semibold border-none shadow-none focus-visible:ring-0 px-0 h-auto"
             data-testid={`block-input-${block.id}`}
@@ -169,8 +273,10 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
       case 'heading3':
         return (
           <Input
+            ref={(el) => (blockRefs.current[block.id] = el)}
             value={block.content || ''}
-            onChange={(e) => handleContentChange(e.target.value)}
+            onChange={(e) => handleInputChange(block.id, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, block.id)}
             placeholder="Heading 3"
             className="text-2xl font-semibold border-none shadow-none focus-visible:ring-0 px-0 h-auto"
             data-testid={`block-input-${block.id}`}
@@ -179,12 +285,67 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
       case 'code':
         return (
           <Textarea
+            ref={(el) => (blockRefs.current[block.id] = el)}
             value={block.content || ''}
-            onChange={(e) => handleContentChange(e.target.value)}
+            onChange={(e) => handleInputChange(block.id, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Backspace' && !block.content) {
+                e.preventDefault();
+                deleteBlock(block.id);
+              }
+            }}
             placeholder="// Code here"
             className="font-mono text-sm bg-slate-100 min-h-[100px]"
             data-testid={`block-input-${block.id}`}
           />
+        );
+      case 'quote':
+        return (
+          <div className="border-l-4 border-blue-500 pl-4 italic">
+            <Input
+              ref={(el) => (blockRefs.current[block.id] = el)}
+              value={block.content || ''}
+              onChange={(e) => handleInputChange(block.id, e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, block.id)}
+              placeholder="Quote"
+              className="border-none shadow-none focus-visible:ring-0 px-0"
+              data-testid={`block-input-${block.id}`}
+            />
+          </div>
+        );
+      case 'toggle':
+        const isCollapsed = collapsedToggles[block.id] !== false;
+        return (
+          <div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => toggleCollapse(block.id)}
+                className="text-slate-500 hover:text-slate-700 transition-transform"
+                style={{ transform: isCollapsed ? 'rotate(0deg)' : 'rotate(90deg)' }}
+              >
+                ▸
+              </button>
+              <Input
+                ref={(el) => (blockRefs.current[block.id] = el)}
+                value={block.content?.title || ''}
+                onChange={(e) => handleContentChange({ ...block.content, title: e.target.value })}
+                onKeyDown={(e) => handleKeyDown(e, block.id)}
+                placeholder="Toggle"
+                className="border-none shadow-none focus-visible:ring-0 px-0 font-medium"
+                data-testid={`block-input-${block.id}`}
+              />
+            </div>
+            {!isCollapsed && (
+              <div className="ml-6 mt-2">
+                <Textarea
+                  value={block.content?.content || ''}
+                  onChange={(e) => handleContentChange({ ...block.content, content: e.target.value })}
+                  placeholder="Hidden content..."
+                  className="border-none shadow-none focus-visible:ring-0 px-0 resize-none min-h-[60px]"
+                />
+              </div>
+            )}
+          </div>
         );
       case 'todo':
         return (
@@ -197,8 +358,10 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
               data-testid={`todo-checkbox-${block.id}`}
             />
             <Input
+              ref={(el) => (blockRefs.current[block.id] = el)}
               value={block.content?.text || ''}
               onChange={(e) => handleContentChange({ ...block.content, text: e.target.value })}
+              onKeyDown={(e) => handleKeyDown(e, block.id)}
               placeholder="To-do"
               className="border-none shadow-none focus-visible:ring-0 px-0"
               data-testid={`block-input-${block.id}`}
@@ -206,14 +369,16 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
           </div>
         );
       case 'divider':
-        return <hr className="border-slate-200 my-4" />;
+        return <hr className="border-slate-300 my-4" />;
       case 'bulletList':
         return (
           <div className="flex items-start gap-3">
             <span className="text-xl mt-0.5">•</span>
             <Input
+              ref={(el) => (blockRefs.current[block.id] = el)}
               value={block.content || ''}
-              onChange={(e) => handleContentChange(e.target.value)}
+              onChange={(e) => handleInputChange(block.id, e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, block.id)}
               placeholder="List item"
               className="border-none shadow-none focus-visible:ring-0 px-0"
               data-testid={`block-input-${block.id}`}
@@ -226,8 +391,10 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
           <div className="flex items-start gap-3">
             <span className="mt-0.5 font-medium">{index}.</span>
             <Input
+              ref={(el) => (blockRefs.current[block.id] = el)}
               value={block.content || ''}
-              onChange={(e) => handleContentChange(e.target.value)}
+              onChange={(e) => handleInputChange(block.id, e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, block.id)}
               placeholder="List item"
               className="border-none shadow-none focus-visible:ring-0 px-0"
               data-testid={`block-input-${block.id}`}
@@ -237,9 +404,19 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
       default:
         return (
           <Textarea
+            ref={(el) => (blockRefs.current[block.id] = el)}
             value={block.content || ''}
-            onChange={(e) => handleContentChange(e.target.value)}
-            placeholder="Type something..."
+            onChange={(e) => handleInputChange(block.id, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                addBlock('paragraph', block.id);
+              } else if (e.key === 'Backspace' && !block.content) {
+                e.preventDefault();
+                deleteBlock(block.id);
+              }
+            }}
+            placeholder="Type '/' for commands..."
             className="border-none shadow-none focus-visible:ring-0 px-0 resize-none min-h-[40px]"
             rows={1}
             data-testid={`block-input-${block.id}`}
@@ -286,6 +463,10 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
               {page.title}
             </h1>
           )}
+          <div className="flex items-center gap-2 text-xs text-slate-400 ml-4">
+            <Clock size={14} />
+            <span>Edited {new Date(page.updated_at).toLocaleDateString()}</span>
+          </div>
         </div>
         
         <Button
@@ -301,17 +482,25 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-3xl mx-auto space-y-2">
           {blocks.map((block) => (
-            <div key={block.id} className="block-container group relative">
+            <div
+              key={block.id}
+              className="block-container group relative"
+              draggable={block.type !== 'divider'}
+              onDragStart={(e) => handleDragStart(e, block.id)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, block.id)}
+            >
               <div className="block-actions flex gap-1 z-10">
                 <button
-                  className="p-1 hover:bg-slate-200 rounded cursor-grab"
+                  className="p-1 hover:bg-slate-200 rounded cursor-grab active:cursor-grabbing"
                   data-testid={`block-grip-${block.id}`}
+                  onMouseDown={(e) => e.preventDefault()}
                 >
                   <GripVertical size={14} className="text-slate-400" />
                 </button>
                 <Select
                   value={block.type}
-                  onValueChange={(type) => updateBlock(block.id, { type })}
+                  onValueChange={(type) => updateBlock(block.id, { type, content: type === 'divider' ? null : (type === 'todo' ? { text: '', checked: false } : (type === 'toggle' ? { title: '', content: '', collapsed: true } : '')) })}
                 >
                   <SelectTrigger className="w-[32px] h-[26px] p-0 border-none shadow-none hover:bg-slate-200 z-10">
                     <div className="text-xs px-1 pointer-events-none" data-testid={`block-type-trigger-${block.id}`}>
@@ -352,11 +541,37 @@ export default function Editor({ page, onPageUpdate, axiosInstance }) {
             data-testid="add-block-button"
           >
             <Plus size={16} />
-            Add a block
+            Add a block or type '/' for commands
           </Button>
         </div>
       </div>
 
+      {/* Command Palette */}
+      <Dialog open={commandOpen} onOpenChange={setCommandOpen}>
+        <DialogContent className="p-0" data-testid="command-palette">
+          <Command className="rounded-lg border-none">
+            <CommandInput placeholder="Type a command or search..." />
+            <CommandList>
+              <CommandEmpty>No results found.</CommandEmpty>
+              <CommandGroup heading="Blocks">
+                {BLOCK_TYPES.map((type) => (
+                  <CommandItem
+                    key={type.value}
+                    onSelect={() => handleCommandSelect(type.value)}
+                    data-testid={`command-${type.cmd}`}
+                  >
+                    <span className="mr-2">{type.icon}</span>
+                    <span>{type.label}</span>
+                    <span className="ml-auto text-xs text-slate-400">/{type.cmd}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Dialog */}
       <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
         <DialogContent data-testid="ai-dialog">
           <DialogHeader>
