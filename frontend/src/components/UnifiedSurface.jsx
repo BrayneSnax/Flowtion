@@ -103,95 +103,97 @@ export default function UnifiedSurface({
   const currentState = stateConfig[page.state] || stateConfig.germinating;
 
   return (
-    <div className={`h-screen flex flex-col bg-gradient-to-br ${frequencyBg[frequency]} transition-colors duration-1000`}>
-      {/* Minimal Header */}
-      <div className="flex items-center justify-between px-4 sm:px-8 py-3 border-b border-slate-200/50 backdrop-blur-sm bg-white/30">
-        <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-          {/* State Indicator */}
-          <div className="relative flex-shrink-0">
-            <button
-              onClick={() => setShowStates(!showStates)}
-              className="flex items-center gap-1 sm:gap-2 p-2 rounded-full hover:bg-white/50 transition-colors"
-              data-testid="state-selector"
-            >
-              <div className={`w-3 h-3 rounded-full ${currentState.color} ${
-                currentState.pulse ? 'animate-pulse' : ''
-              }`} />
-            </button>
+    <>
+      <div className={`h-screen flex flex-col bg-gradient-to-br ${frequencyBg[frequency]} transition-colors duration-1000`}>
+        {/* Minimal Header */}
+        <div className="flex items-center justify-between px-4 sm:px-8 py-3 border-b border-slate-200/50 backdrop-blur-sm bg-white/30">
+          <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+            {/* State Indicator */}
+            <div className="relative flex-shrink-0">
+              <button
+                onClick={() => setShowStates(!showStates)}
+                className="flex items-center gap-1 sm:gap-2 p-2 rounded-full hover:bg-white/50 transition-colors"
+                data-testid="state-selector"
+              >
+                <div className={`w-3 h-3 rounded-full ${currentState.color} ${
+                  currentState.pulse ? 'animate-pulse' : ''
+                }`} />
+              </button>
 
-            {showStates && (
-              <>
-                <div 
-                  className="fixed inset-0 z-40" 
-                  onClick={() => setShowStates(false)}
-                />
-                <div className="absolute top-full mt-2 left-0 bg-white rounded-xl shadow-2xl p-2 z-50 min-w-[200px]">
-                  {Object.entries(stateConfig).map(([state, config]) => (
-                    <button
-                      key={state}
-                      onClick={() => changeState(state)}
-                      className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors text-left"
-                    >
-                      <div className={`w-3 h-3 rounded-full ${config.color}`} />
-                      <span className="text-sm text-slate-700">{config.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+              {showStates && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowStates(false)}
+                  />
+                  <div className="absolute top-full mt-2 left-0 bg-white rounded-xl shadow-2xl p-2 z-50 min-w-[200px]">
+                    {Object.entries(stateConfig).map(([state, config]) => (
+                      <button
+                        key={state}
+                        onClick={() => changeState(state)}
+                        className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors text-left"
+                      >
+                        <div className={`w-3 h-3 rounded-full ${config.color}`} />
+                        <span className="text-sm text-slate-700">{config.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Title */}
+            <input
+              ref={titleRef}
+              type="text"
+              value={title}
+              onChange={handleTitleChange}
+              onBlur={handleTitleBlur}
+              placeholder="Untitled"
+              className="flex-1 text-lg sm:text-2xl font-light bg-transparent border-none outline-none text-slate-900 placeholder-slate-400 min-w-0"
+              data-testid="page-title-input"
+            />
           </div>
 
-          {/* Title */}
-          <input
-            ref={titleRef}
-            type="text"
-            value={title}
-            onChange={handleTitleChange}
-            onBlur={handleTitleBlur}
-            placeholder="Untitled"
-            className="flex-1 text-lg sm:text-2xl font-light bg-transparent border-none outline-none text-slate-900 placeholder-slate-400 min-w-0"
-            data-testid="page-title-input"
-          />
+          {/* Actions */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            <button
+              onClick={() => setShowRecent(!showRecent)}
+              className="p-2 rounded-full hover:bg-white/50 transition-colors"
+              title="Recent pages"
+              data-testid="toggle-recent"
+            >
+              <Circle size={18} className="text-slate-600" />
+            </button>
+            <button
+              onClick={onViewConstellation}
+              className="p-2 rounded-full hover:bg-white/50 transition-colors"
+              title="Constellation"
+              data-testid="view-constellation"
+            >
+              <Layers size={18} className="text-slate-600" />
+            </button>
+            <button
+              onClick={onLogout}
+              className="p-2 rounded-full hover:bg-white/50 transition-colors"
+              title="Logout"
+              data-testid="logout-button"
+            >
+              <LogOut size={18} className="text-slate-600" />
+            </button>
+          </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-          <button
-            onClick={() => setShowRecent(!showRecent)}
-            className="p-2 rounded-full hover:bg-white/50 transition-colors"
-            title="Recent pages"
-            data-testid="toggle-recent"
-          >
-            <Circle size={18} className="text-slate-600" />
-          </button>
-          <button
-            onClick={onViewConstellation}
-            className="p-2 rounded-full hover:bg-white/50 transition-colors"
-            title="Constellation"
-            data-testid="view-constellation"
-          >
-            <Layers size={18} className="text-slate-600" />
-          </button>
-          <button
-            onClick={onLogout}
-            className="p-2 rounded-full hover:bg-white/50 transition-colors"
-            title="Logout"
-            data-testid="logout-button"
-          >
-            <LogOut size={18} className="text-slate-600" />
-          </button>
-        </div>
-      </div>
-
-      {/* Main Surface */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-4 sm:px-8 py-6 sm:py-12">
-          <BlockEditor
-            page={page}
-            onPageUpdate={onPageUpdate}
-            axiosInstance={axiosInstance}
-            frequency={frequency}
-          />
+        {/* Main Surface */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-4 sm:px-8 py-6 sm:py-12">
+            <BlockEditor
+              page={page}
+              onPageUpdate={onPageUpdate}
+              axiosInstance={axiosInstance}
+              frequency={frequency}
+            />
+          </div>
         </div>
       </div>
 
@@ -250,7 +252,6 @@ export default function UnifiedSurface({
           </div>
         </>
       )}
-      </div>
-    </div>
+    </>
   );
 }
