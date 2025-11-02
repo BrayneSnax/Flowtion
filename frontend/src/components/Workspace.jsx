@@ -212,7 +212,7 @@ export default function Workspace({ onLogout }) {
           onPageDissolve={dissolvePage}
           onPageSelect={(id) => navigate(`/page/${id}`)}
           onViewConstellation={() => setViewMode('constellation')}
-          onChangeFrequency={() => setFrequency(null)}
+          onChangeFrequency={() => setViewMode('frequency')}
           onLogout={handleLogout}
           axiosInstance={axiosInstance}
         />
