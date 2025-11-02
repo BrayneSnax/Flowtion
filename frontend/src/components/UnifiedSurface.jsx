@@ -190,6 +190,14 @@ export default function UnifiedSurface({
           {/* Actions */}
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <button
+              onClick={onChangeFrequency}
+              className="p-2 rounded-full hover:bg-white/50 transition-colors"
+              title="Main Menu"
+              data-testid="home-button"
+            >
+              <Home size={18} className="text-slate-600" />
+            </button>
+            <button
               onClick={() => setSearchOpen(true)}
               className="p-2 rounded-full hover:bg-white/50 transition-colors"
               title={getLabel('search', metaphorMode)}
