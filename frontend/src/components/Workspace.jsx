@@ -31,10 +31,7 @@ export default function Workspace({ onLogout }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedFrequency = sessionStorage.getItem('frequency');
-    if (storedFrequency) {
-      setFrequency(storedFrequency);
-    }
+    // Don't auto-show frequency selector, let user navigate freely
     loadPages();
   }, []);
 
