@@ -363,6 +363,126 @@ async def ai_assist(data: AIRequest, user_id: str = Depends(get_current_user)):
         logging.error(f"AI assist error: {str(e)}")
         raise HTTPException(status_code=500, detail="AI service error")
 
+# AI Steward Routes
+@api_router.post("/steward/capture")
+async def steward_capture(data: dict, user_id: str = Depends(get_current_user)):
+    """Keeper role: capture and title notes"""
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI service not configured")
+    
+    try:
+        body = data.get("body", "")
+        
+        # Ask AI to suggest title and tags
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"steward_{user_id}",
+            system_message="You are a gentle AI steward helping organize thoughts. Suggest concise titles (3-5 words) and 1-3 relevant tags."
+        ).with_model("openai", "gpt-4o")
+        
+        prompt = f"Content: {body[:200]}...\n\nSuggest a concise title and 1-3 tags. Format: Title: [title]\\nTags: [tag1, tag2]"
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        # Parse response
+        lines = response.split('\n')
+        title = "Untitled"
+        tags = []
+        
+        for line in lines:
+            if line.startswith("Title:"):
+                title = line.replace("Title:", "").strip()
+            elif line.startswith("Tags:"):
+                tags_str = line.replace("Tags:", "").strip()
+                tags = [t.strip() for t in tags_str.split(',')]
+        
+        return {"title": title, "tags": tags, "body": body}
+    except Exception as e:
+        logging.error(f"Steward capture error: {str(e)}")
+        return {"title": "Untitled", "tags": [], "body": body}
+
+@api_router.post("/steward/session-summary")
+async def steward_session_summary(user_id: str = Depends(get_current_user)):
+    """Rhythmer role: generate session recap"""
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI service not configured")
+    
+    try:
+        # Get recent pages edited in this session (last 2 hours)
+        two_hours_ago = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+        recent_pages = await db.pages.find(
+            {
+                "user_id": user_id,
+                "updated_at": {"$gte": two_hours_ago},
+                "dissolved_at": {"$exists": False}
+            },
+            {"_id": 0}
+        ).to_list(10)
+        
+        if not recent_pages:
+            return {"summary": "Quiet session. No changes recorded.", "next_step": "Begin when ready."}
+        
+        # Generate summary
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"rhythmer_{user_id}",
+            system_message="You are a gentle AI rhythmer. Summarize work sessions in 1-2 sentences and suggest one clear next step."
+        ).with_model("openai", "gpt-4o")
+        
+        pages_context = "\n".join([f"- {p['title']} ({p.get('state', 'unknown')} state)" for p in recent_pages])
+        prompt = f"Session work:\n{pages_context}\n\nProvide: 1) Brief summary (1-2 sentences) 2) One actionable next step\n\nFormat:\nSummary: [summary]\nNext: [next step]"
+        
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        # Parse response
+        lines = response.split('\n')
+        summary = ""
+        next_step = ""
+        
+        for line in lines:
+            if line.startswith("Summary:"):
+                summary = line.replace("Summary:", "").strip()
+            elif line.startswith("Next:"):
+                next_step = line.replace("Next:", "").strip()
+        
+        return {
+            "summary": summary or "Work in progress.",
+            "next_step": next_step or "Continue where you left off.",
+            "pages_touched": len(recent_pages)
+        }
+    except Exception as e:
+        logging.error(f"Session summary error: {str(e)}")
+        return {"summary": "Session in progress.", "next_step": "Keep going."}
+
+@api_router.post("/steward/detect-intent")
+async def steward_detect_intent(data: dict, user_id: str = Depends(get_current_user)):
+    """Detect natural language intent from text"""
+    if not EMERGENT_LLM_KEY:
+        return {"intent": "file", "confidence": 0}
+    
+    try:
+        text = data.get("text", "")
+        
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"intent_{user_id}",
+            system_message="Detect user intent from text. Return only: file, link, schedule, or defer"
+        ).with_model("openai", "gpt-4o")
+        
+        prompt = f"Text: '{text}'\n\nWhat is the intent? Choose one: file (store/save), link (connect), schedule (remind/later), defer (park/hold). Return only the intent word."
+        user_message = UserMessage(text=prompt)
+        response = await chat.send_message(user_message)
+        
+        intent = response.strip().lower()
+        if intent not in ["file", "link", "schedule", "defer"]:
+            intent = "file"
+        
+        return {"intent": intent, "text": text}
+    except Exception as e:
+        logging.error(f"Intent detection error: {str(e)}")
+        return {"intent": "file", "text": text}
+
 # Semantic Search
 @api_router.post("/ai/search")
 async def semantic_search(data: SemanticSearchRequest, user_id: str = Depends(get_current_user)):
