@@ -127,6 +127,16 @@ export default function UnifiedSurface({
   return (
     <>
       <div className={`h-screen flex flex-col bg-gradient-to-br ${frequencyBg[frequency]} transition-colors duration-1000`}>
+        {/* Orientation Header */}
+        <OrientationHeader
+          breadcrumb={['Workspace', page.title]}
+          intent="drafting"
+          options={[
+            { label: 'save', onClick: () => toast.success('Saved') },
+            { label: 'pause', onClick: () => setPauseVisible(true) },
+          ]}
+        />
+
         {/* Minimal Header */}
         <div className="flex items-center justify-between px-4 sm:px-8 py-3 border-b border-slate-200/50 backdrop-blur-sm bg-white/30">
           <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
