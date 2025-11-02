@@ -44,11 +44,12 @@ export default function Workspace({ onLogout }) {
   useEffect(() => {
     if (pageId) {
       loadPage(pageId);
-    } else if (pages.length > 0 && frequency) {
-      // Auto-select based on frequency
-      suggestPage();
+    } else if (pages.length > 0) {
+      // Auto-select first page if no page selected
+      const firstPage = pages.find(p => !p.parent_id) || pages[0];
+      navigate(`/page/${firstPage.id}`, { replace: true });
     }
-  }, [pageId, pages, frequency]);
+  }, [pageId, pages]);
 
   const loadPages = async () => {
     try {
