@@ -411,6 +411,14 @@ export default function UnifiedSurface({
           </div>
         </>
       )}
+
+      {/* AI Steward */}
+      <AISteward
+        visible={true}
+        currentPage={page}
+        axiosInstance={axiosInstance}
+        onAction={handleStewardAction}
+      />
     </>
   );
 }
