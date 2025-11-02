@@ -241,9 +241,96 @@ export default function UnifiedSurface({
               axiosInstance={axiosInstance}
               frequency={frequency}
             />
+            
+            {/* Mycelial View */}
+            <MycelialView
+              currentPageId={page.id}
+              pages={pages}
+              onPageSelect={onPageSelect}
+              metaphorMode={metaphorMode}
+            />
           </div>
         </div>
       </div>
+
+      {/* Pause Line */}
+      <PauseLine
+        visible={pauseVisible}
+        onContinue={() => setPauseVisible(false)}
+        onSaveAndExit={() => {
+          setPauseVisible(false);
+          onLogout();
+        }}
+        onReminder={() => {
+          setPauseVisible(false);
+          toast.success('Reminder set for 15 minutes');
+        }}
+        onClose={() => setPauseVisible(false)}
+      />
+
+      {/* Tuning Fork Search */}
+      <TuningForkPalette
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        pages={pages}
+        onSelect={onPageSelect}
+        metaphorMode={metaphorMode}
+        axiosInstance={axiosInstance}
+      />
+
+      {/* Settings Drawer */}
+      {settingsOpen && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setSettingsOpen(false)}
+          />
+          <div className="fixed right-0 top-0 bottom-0 w-80 bg-white border-l border-slate-200 p-6 z-50 shadow-2xl">
+            <h2 className="text-lg font-semibold text-slate-900 mb-6">Settings</h2>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-slate-900">Metaphor Mode</div>
+                  <div className="text-sm text-slate-500">
+                    Use feeling-based labels
+                  </div>
+                </div>
+                <button
+                  onClick={toggleMetaphor}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    metaphorMode ? 'bg-purple-600' : 'bg-slate-200'
+                  }`}
+                  data-testid="metaphor-toggle"
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      metaphorMode ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {metaphorMode && (
+                <div className="mt-4 p-4 bg-purple-50 rounded-lg space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Pages</span>
+                    <span className="text-purple-700 font-medium">Heartbeat</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Search</span>
+                    <span className="text-purple-700 font-medium">Tuning Fork</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Backlinks</span>
+                    <span className="text-purple-700 font-medium">Echoes</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Recent Pages Drawer (Mobile-friendly) */}
       {showRecent && (
