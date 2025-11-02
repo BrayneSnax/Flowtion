@@ -147,6 +147,7 @@ export default function UnifiedSurface({
         <OrientationHeader
           breadcrumb={['Workspace', page.title]}
           intent="drafting"
+          heartbeat={`${page.state} state`}
           options={[
             { label: 'save', onClick: () => toast.success('Saved') },
             { label: 'pause', onClick: () => setPauseVisible(true) },
