@@ -190,9 +190,17 @@ export default function UnifiedSurface({
           {/* Actions */}
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <button
+              onClick={() => setSearchOpen(true)}
+              className="p-2 rounded-full hover:bg-white/50 transition-colors"
+              title={getLabel('search', metaphorMode)}
+              data-testid="open-search"
+            >
+              <Search size={18} className="text-slate-600" />
+            </button>
+            <button
               onClick={() => setShowRecent(!showRecent)}
               className="p-2 rounded-full hover:bg-white/50 transition-colors"
-              title="Recent pages"
+              title={getLabel('recent', metaphorMode)}
               data-testid="toggle-recent"
             >
               <Circle size={18} className="text-slate-600" />
@@ -200,10 +208,18 @@ export default function UnifiedSurface({
             <button
               onClick={onViewConstellation}
               className="p-2 rounded-full hover:bg-white/50 transition-colors"
-              title="Constellation"
+              title={getLabel('constellation', metaphorMode)}
               data-testid="view-constellation"
             >
               <Layers size={18} className="text-slate-600" />
+            </button>
+            <button
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              className="p-2 rounded-full hover:bg-white/50 transition-colors"
+              title="Settings"
+              data-testid="open-settings"
+            >
+              <Settings size={18} className="text-slate-600" />
             </button>
             <button
               onClick={onLogout}
