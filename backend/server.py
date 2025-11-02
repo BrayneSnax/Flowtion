@@ -13,21 +13,19 @@ from datetime import datetime, timezone, timedelta
 import bcrypt
 import jwt
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+import json
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# JWT Config
 JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-change-in-production')
 JWT_ALGORITHM = 'HS256'
-JWT_EXPIRATION_HOURS = 24 * 7  # 7 days
+JWT_EXPIRATION_HOURS = 24 * 7
 
-# LLM Config
 EMERGENT_LLM_KEY = os.getenv('EMERGENT_LLM_KEY')
 
 app = FastAPI()
@@ -57,65 +55,34 @@ class TokenResponse(BaseModel):
     token: str
     user: Dict[str, Any]
 
-class Page(BaseModel):
+class Node(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
-    title: str = "Untitled"
-    icon: Optional[str] = "📄"
-    parent_id: Optional[str] = None
-    state: str = "germinating"  # germinating, active, cooling, crystallized, turbulent
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    last_viewed_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-
-class PageCreate(BaseModel):
-    title: str = "Untitled"
-    icon: Optional[str] = "📄"
-    parent_id: Optional[str] = None
-    state: Optional[str] = "germinating"
-
-class PageUpdate(BaseModel):
-    title: Optional[str] = None
-    icon: Optional[str] = None
-    parent_id: Optional[str] = None
-    state: Optional[str] = None
-
-class Block(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    page_id: str
-    type: str
-    content: Any
-    order: int
+    title: str
+    content: str = ""
+    type: str = "thought"  # thought, project, ritual, pattern
+    tags: List[str] = []
+    linked_ids: List[str] = []
+    position: Dict[str, float] = {"x": 0, "y": 0}
+    frequency: str = "reflect"  # focus, dream, reflect, synthesize
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
-class BlockCreate(BaseModel):
-    page_id: str
-    type: str
-    content: Any
-    order: int
+class ConversationInput(BaseModel):
+    text: str
+    current_frequency: str = "reflect"
 
-class BlockUpdate(BaseModel):
-    type: Optional[str] = None
-    content: Optional[Any] = None
-    order: Optional[int] = None
+class StructureResponse(BaseModel):
+    action: str  # create, link, modify, archive
+    nodes: List[Node] = []
+    links: List[Dict[str, str]] = []
+    message: str = ""
 
-class AIRequest(BaseModel):
-    prompt: str
-    action: str  # complete, improve, summarize, query
-
-class AIResponse(BaseModel):
-    result: str
-
-class SemanticSearchRequest(BaseModel):
-    query: str
-
-class RelatedPage(BaseModel):
-    page: Page
-    relevance: float
-    reason: str
+class PatternInsight(BaseModel):
+    pattern: str
+    confidence: float
+    suggestion: str
 
 # ==================== Auth Helpers ====================
 
@@ -145,13 +112,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-# ==================== Routes ====================
+# ==================== Auth Routes ====================
 
-@api_router.get("/")
-async def root():
-    return {"message": "Notex API - Intuitive Workspace"}
-
-# Auth Routes
 @api_router.post("/auth/register", response_model=TokenResponse)
 async def register(data: UserRegister):
     existing = await db.users.find_one({"email": data.email}, {"_id": 0})
@@ -185,392 +147,153 @@ async def login(data: UserLogin):
         user={"id": user['id'], "email": user['email'], "name": user['name']}
     )
 
-@api_router.get("/auth/me")
-async def get_me(user_id: str = Depends(get_current_user)):
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+# ==================== Conversational Builder ====================
 
-# Page Routes
-@api_router.post("/pages", response_model=Page)
-async def create_page(data: PageCreate, user_id: str = Depends(get_current_user)):
-    page = Page(user_id=user_id, **data.model_dump())
-    await db.pages.insert_one(page.model_dump())
-    return page
-
-@api_router.get("/pages", response_model=List[Page])
-async def get_pages(user_id: str = Depends(get_current_user)):
-    pages = await db.pages.find({"user_id": user_id}, {"_id": 0}).to_list(1000)
-    return pages
-
-@api_router.get("/pages/{page_id}", response_model=Page)
-async def get_page(page_id: str, user_id: str = Depends(get_current_user)):
-    page = await db.pages.find_one({"id": page_id, "user_id": user_id}, {"_id": 0})
-    if not page:
-        raise HTTPException(status_code=404, detail="Page not found")
-    
-    # Update last_viewed_at
-    await db.pages.update_one(
-        {"id": page_id},
-        {"$set": {"last_viewed_at": datetime.now(timezone.utc).isoformat()}}
-    )
-    page['last_viewed_at'] = datetime.now(timezone.utc).isoformat()
-    
-    return page
-
-@api_router.patch("/pages/{page_id}", response_model=Page)
-async def update_page(page_id: str, data: PageUpdate, user_id: str = Depends(get_current_user)):
-    page = await db.pages.find_one({"id": page_id, "user_id": user_id}, {"_id": 0})
-    if not page:
-        raise HTTPException(status_code=404, detail="Page not found")
-    
-    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
-    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
-    
-    await db.pages.update_one({"id": page_id}, {"$set": update_data})
-    
-    updated_page = await db.pages.find_one({"id": page_id}, {"_id": 0})
-    return updated_page
-
-@api_router.delete("/pages/{page_id}")
-async def delete_page(page_id: str, user_id: str = Depends(get_current_user)):
-    page = await db.pages.find_one({"id": page_id, "user_id": user_id})
-    if not page:
-        raise HTTPException(status_code=404, detail="Page not found")
-    
-    # Soft delete - mark as dissolved
-    await db.pages.update_one(
-        {"id": page_id},
-        {"$set": {
-            "dissolved_at": datetime.now(timezone.utc).isoformat(),
-            "state": "dissolved"
-        }}
-    )
-    
-    return {"message": "Page dissolved"}
-
-@api_router.post("/pages/{page_id}/restore")
-async def restore_page(page_id: str, user_id: str = Depends(get_current_user)):
-    page = await db.pages.find_one({"id": page_id, "user_id": user_id})
-    if not page:
-        raise HTTPException(status_code=404, detail="Page not found")
-    
-    await db.pages.update_one(
-        {"id": page_id},
-        {"$unset": {"dissolved_at": ""}, "$set": {"state": "active"}}
-    )
-    
-    return {"message": "Page restored"}
-
-@api_router.get("/pages/dissolved/list", response_model=List[Page])
-async def get_dissolved_pages(user_id: str = Depends(get_current_user)):
-    pages = await db.pages.find(
-        {"user_id": user_id, "dissolved_at": {"$exists": True}},
-        {"_id": 0}
-    ).to_list(1000)
-    return pages
-
-# Block Routes
-@api_router.post("/blocks", response_model=Block)
-async def create_block(data: BlockCreate, user_id: str = Depends(get_current_user)):
-    page = await db.pages.find_one({"id": data.page_id, "user_id": user_id})
-    if not page:
-        raise HTTPException(status_code=404, detail="Page not found")
-    
-    block = Block(**data.model_dump())
-    await db.blocks.insert_one(block.model_dump())
-    
-    # Update page's updated_at and suggest state change
-    await db.pages.update_one(
-        {"id": data.page_id},
-        {"$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
-    )
-    
-    return block
-
-@api_router.get("/blocks/{page_id}", response_model=List[Block])
-async def get_blocks(page_id: str, user_id: str = Depends(get_current_user)):
-    page = await db.pages.find_one({"id": page_id, "user_id": user_id})
-    if not page:
-        raise HTTPException(status_code=404, detail="Page not found")
-    
-    blocks = await db.blocks.find({"page_id": page_id}, {"_id": 0}).sort("order", 1).to_list(1000)
-    return blocks
-
-@api_router.patch("/blocks/{block_id}", response_model=Block)
-async def update_block(block_id: str, data: BlockUpdate, user_id: str = Depends(get_current_user)):
-    block = await db.blocks.find_one({"id": block_id}, {"_id": 0})
-    if not block:
-        raise HTTPException(status_code=404, detail="Block not found")
-    
-    page = await db.pages.find_one({"id": block['page_id'], "user_id": user_id})
-    if not page:
-        raise HTTPException(status_code=403, detail="Unauthorized")
-    
-    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
-    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
-    
-    await db.blocks.update_one({"id": block_id}, {"$set": update_data})
-    await db.pages.update_one(
-        {"id": block['page_id']},
-        {"$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
-    )
-    
-    updated_block = await db.blocks.find_one({"id": block_id}, {"_id": 0})
-    return updated_block
-
-@api_router.delete("/blocks/{block_id}")
-async def delete_block(block_id: str, user_id: str = Depends(get_current_user)):
-    block = await db.blocks.find_one({"id": block_id}, {"_id": 0})
-    if not block:
-        raise HTTPException(status_code=404, detail="Block not found")
-    
-    page = await db.pages.find_one({"id": block['page_id'], "user_id": user_id})
-    if not page:
-        raise HTTPException(status_code=403, detail="Unauthorized")
-    
-    await db.blocks.delete_one({"id": block_id})
-    return {"message": "Block deleted"}
-
-# AI Routes
-@api_router.post("/ai/assist", response_model=AIResponse)
-async def ai_assist(data: AIRequest, user_id: str = Depends(get_current_user)):
+@api_router.post("/converse")
+async def converse(data: ConversationInput, user_id: str = Depends(get_current_user)):
+    """Natural language → structure generation"""
     if not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=500, detail="AI service not configured")
     
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
-            session_id=f"user_{user_id}",
-            system_message="You are a helpful writing assistant. Provide clear, concise responses."
-        ).with_model("openai", "gpt-4o")
-        
-        if data.action == "complete":
-            prompt = f"Continue this text naturally: {data.prompt}"
-        elif data.action == "improve":
-            prompt = f"Improve and refine this text: {data.prompt}"
-        elif data.action == "summarize":
-            prompt = f"Summarize this text: {data.prompt}"
-        else:
-            prompt = data.prompt
-        
-        user_message = UserMessage(text=prompt)
-        response = await chat.send_message(user_message)
-        
-        return AIResponse(result=response)
-    except Exception as e:
-        logging.error(f"AI assist error: {str(e)}")
-        raise HTTPException(status_code=500, detail="AI service error")
+            session_id=f"builder_{user_id}",
+            system_message="""You are a cognitive steward that interprets natural language into structural actions.
+            
+When the user speaks, determine:
+1. Action type: create (new node), link (connect existing), modify (update), archive (pause)
+2. Node details: title, type (thought/project/ritual/pattern), tags
+3. Links: which nodes should connect
+4. Response: brief, invitational confirmation
 
-# AI Steward Routes
-@api_router.post("/steward/capture")
-async def steward_capture(data: dict, user_id: str = Depends(get_current_user)):
-    """Keeper role: capture and title notes"""
-    if not EMERGENT_LLM_KEY:
-        raise HTTPException(status_code=500, detail="AI service not configured")
-    
-    try:
-        body = data.get("body", "")
-        
-        # Ask AI to suggest title and tags
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"steward_{user_id}",
-            system_message="You are a gentle AI steward helping organize thoughts. Suggest concise titles (3-5 words) and 1-3 relevant tags."
-        ).with_model("openai", "gpt-4o")
-        
-        prompt = f"Content: {body[:200]}...\n\nSuggest a concise title and 1-3 tags. Format: Title: [title]\\nTags: [tag1, tag2]"
-        user_message = UserMessage(text=prompt)
-        response = await chat.send_message(user_message)
-        
-        # Parse response
-        lines = response.split('\n')
-        title = "Untitled"
-        tags = []
-        
-        for line in lines:
-            if line.startswith("Title:"):
-                title = line.replace("Title:", "").strip()
-            elif line.startswith("Tags:"):
-                tags_str = line.replace("Tags:", "").strip()
-                tags = [t.strip() for t in tags_str.split(',')]
-        
-        return {"title": title, "tags": tags, "body": body}
-    except Exception as e:
-        logging.error(f"Steward capture error: {str(e)}")
-        return {"title": "Untitled", "tags": [], "body": body}
+Return JSON:
+{
+  "action": "create|link|modify|archive",
+  "nodes": [{"title": "...", "type": "...", "tags": [...]}],
+  "links": [{"from": "title1", "to": "title2"}],
+  "message": "brief confirmation"
+}
 
-@api_router.post("/steward/session-summary")
-async def steward_session_summary(user_id: str = Depends(get_current_user)):
-    """Rhythmer role: generate session recap"""
-    if not EMERGENT_LLM_KEY:
-        raise HTTPException(status_code=500, detail="AI service not configured")
-    
-    try:
-        # Get recent pages edited in this session (last 2 hours)
-        two_hours_ago = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
-        recent_pages = await db.pages.find(
-            {
-                "user_id": user_id,
-                "updated_at": {"$gte": two_hours_ago},
-                "dissolved_at": {"$exists": False}
-            },
-            {"_id": 0}
-        ).to_list(10)
-        
-        if not recent_pages:
-            return {"summary": "Quiet session. No changes recorded.", "next_step": "Begin when ready."}
-        
-        # Generate summary
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"rhythmer_{user_id}",
-            system_message="You are a gentle AI rhythmer. Summarize work sessions in 1-2 sentences and suggest one clear next step."
+Examples:
+- "start mapping ritual systems" → create node titled "Ritual Mapping", type: project, tags: [ritual, systems]
+- "link that with dopamine thread" → link nodes, message: "Connected"
+- "pause this branch" → archive node
+"""
         ).with_model("openai", "gpt-4o")
         
-        pages_context = "\n".join([f"- {p['title']} ({p.get('state', 'unknown')} state)" for p in recent_pages])
-        prompt = f"Session work:\n{pages_context}\n\nProvide: 1) Brief summary (1-2 sentences) 2) One actionable next step\n\nFormat:\nSummary: [summary]\nNext: [next step]"
-        
+        prompt = f"Frequency: {data.current_frequency}\nUser: {data.text}\n\nInterpret and respond with JSON."
         user_message = UserMessage(text=prompt)
         response = await chat.send_message(user_message)
         
-        # Parse response
-        lines = response.split('\n')
-        summary = ""
-        next_step = ""
+        # Parse AI response
+        try:
+            structure = json.loads(response)
+        except:
+            # Fallback if AI doesn't return JSON
+            structure = {
+                "action": "create",
+                "nodes": [{"title": data.text[:50], "type": "thought", "tags": []}],
+                "links": [],
+                "message": "Captured"
+            }
         
-        for line in lines:
-            if line.startswith("Summary:"):
-                summary = line.replace("Summary:", "").strip()
-            elif line.startswith("Next:"):
-                next_step = line.replace("Next:", "").strip()
+        # Execute structure changes
+        created_nodes = []
+        for node_data in structure.get("nodes", []):
+            node = Node(
+                user_id=user_id,
+                title=node_data.get("title", "Untitled"),
+                type=node_data.get("type", "thought"),
+                tags=node_data.get("tags", []),
+                frequency=data.current_frequency,
+                position={"x": len(created_nodes) * 200, "y": 100}
+            )
+            await db.nodes.insert_one(node.model_dump())
+            created_nodes.append(node)
+        
+        # Log pattern for rhythm tracking
+        await db.patterns.insert_one({
+            "user_id": user_id,
+            "frequency": data.current_frequency,
+            "action": structure.get("action"),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
         
         return {
-            "summary": summary or "Work in progress.",
-            "next_step": next_step or "Continue where you left off.",
-            "pages_touched": len(recent_pages)
+            "action": structure.get("action"),
+            "nodes": [n.model_dump() for n in created_nodes],
+            "links": structure.get("links", []),
+            "message": structure.get("message", "Done")
         }
     except Exception as e:
-        logging.error(f"Session summary error: {str(e)}")
-        return {"summary": "Session in progress.", "next_step": "Keep going."}
+        logging.error(f"Converse error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Conversation failed")
 
-@api_router.post("/steward/detect-intent")
-async def steward_detect_intent(data: dict, user_id: str = Depends(get_current_user)):
-    """Detect natural language intent from text"""
+# ==================== Node Management ====================
+
+@api_router.get("/nodes")
+async def get_nodes(user_id: str = Depends(get_current_user)):
+    nodes = await db.nodes.find({"user_id": user_id}, {"_id": 0}).to_list(1000)
+    return nodes
+
+@api_router.get("/nodes/{frequency}")
+async def get_nodes_by_frequency(frequency: str, user_id: str = Depends(get_current_user)):
+    nodes = await db.nodes.find(
+        {"user_id": user_id, "frequency": frequency},
+        {"_id": 0}
+    ).to_list(1000)
+    return nodes
+
+@api_router.patch("/nodes/{node_id}")
+async def update_node(node_id: str, updates: dict, user_id: str = Depends(get_current_user)):
+    node = await db.nodes.find_one({"id": node_id, "user_id": user_id})
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    updates['updated_at'] = datetime.now(timezone.utc).isoformat()
+    await db.nodes.update_one({"id": node_id}, {"$set": updates})
+    
+    updated = await db.nodes.find_one({"id": node_id}, {"_id": 0})
+    return updated
+
+# ==================== Pattern Recognition ====================
+
+@api_router.get("/patterns/insights")
+async def get_pattern_insights(user_id: str = Depends(get_current_user)):
+    """Analyze user's creative rhythms"""
     if not EMERGENT_LLM_KEY:
-        return {"intent": "file", "confidence": 0}
+        return {"insights": []}
     
     try:
-        text = data.get("text", "")
-        
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"intent_{user_id}",
-            system_message="Detect user intent from text. Return only: file, link, schedule, or defer"
-        ).with_model("openai", "gpt-4o")
-        
-        prompt = f"Text: '{text}'\n\nWhat is the intent? Choose one: file (store/save), link (connect), schedule (remind/later), defer (park/hold). Return only the intent word."
-        user_message = UserMessage(text=prompt)
-        response = await chat.send_message(user_message)
-        
-        intent = response.strip().lower()
-        if intent not in ["file", "link", "schedule", "defer"]:
-            intent = "file"
-        
-        return {"intent": intent, "text": text}
-    except Exception as e:
-        logging.error(f"Intent detection error: {str(e)}")
-        return {"intent": "file", "text": text}
-
-# Semantic Search
-@api_router.post("/ai/search")
-async def semantic_search(data: SemanticSearchRequest, user_id: str = Depends(get_current_user)):
-    if not EMERGENT_LLM_KEY:
-        raise HTTPException(status_code=500, detail="AI service not configured")
-    
-    try:
-        # Get all user's pages
-        pages = await db.pages.find(
-            {"user_id": user_id, "dissolved_at": {"$exists": False}},
+        # Get recent pattern history
+        patterns = await db.patterns.find(
+            {"user_id": user_id},
             {"_id": 0}
-        ).to_list(1000)
+        ).sort("timestamp", -1).limit(50).to_list(50)
         
-        if not pages:
-            return {"results": []}
+        if len(patterns) < 5:
+            return {"insights": []}
         
-        # Get blocks for each page
-        pages_with_content = []
-        for page in pages:
-            blocks = await db.blocks.find({"page_id": page['id']}, {"_id": 0}).to_list(1000)
-            content = " ".join([str(b.get('content', '')) for b in blocks if b.get('content')])
-            pages_with_content.append({
-                "page": page,
-                "content": content[:500]  # Limit content length
-            })
-        
-        # Use AI to find relevant pages
+        # Ask AI to identify patterns
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
-            session_id=f"search_{user_id}",
-            system_message="You are a semantic search assistant. Analyze pages and find the most relevant ones based on the query. Return a JSON array with page IDs and relevance scores."
+            session_id=f"pattern_{user_id}",
+            system_message="You identify creative rhythms and patterns. Be concise and insightful."
         ).with_model("openai", "gpt-4o")
         
-        pages_context = "\n".join([
-            f"Page: {p['page']['title']} (ID: {p['page']['id']}, State: {p['page'].get('state', 'unknown')})\nContent: {p['content'][:200]}..."
-            for p in pages_with_content[:10]  # Limit to 10 pages for context
+        pattern_summary = "\n".join([
+            f"{p['frequency']} → {p['action']}" for p in patterns[:20]
         ])
         
-        prompt = f"Query: {data.query}\n\nPages:\n{pages_context}\n\nReturn the top 3 most relevant page IDs with brief reasons why they match the query."
+        prompt = f"Recent activity:\n{pattern_summary}\n\nWhat patterns emerge? What does this suggest about their creative rhythm? Be specific and brief."
         user_message = UserMessage(text=prompt)
         response = await chat.send_message(user_message)
         
-        return {"results": response, "total_pages": len(pages)}
+        return {"insights": [response]}
     except Exception as e:
-        logging.error(f"Semantic search error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Search service error")
-
-# Related Pages (Resonance)
-@api_router.get("/pages/{page_id}/related")
-async def get_related_pages(page_id: str, user_id: str = Depends(get_current_user)):
-    if not EMERGENT_LLM_KEY:
-        return {"related": []}
-    
-    try:
-        # Get current page
-        current_page = await db.pages.find_one({"id": page_id, "user_id": user_id}, {"_id": 0})
-        if not current_page:
-            raise HTTPException(status_code=404, detail="Page not found")
-        
-        current_blocks = await db.blocks.find({"page_id": page_id}, {"_id": 0}).to_list(1000)
-        current_content = " ".join([str(b.get('content', '')) for b in current_blocks if b.get('content')])
-        
-        # Get other pages
-        other_pages = await db.pages.find(
-            {"user_id": user_id, "id": {"$ne": page_id}, "dissolved_at": {"$exists": False}},
-            {"_id": 0}
-        ).limit(20).to_list(20)
-        
-        if not other_pages:
-            return {"related": []}
-        
-        # Use AI to find related pages
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"related_{user_id}",
-            system_message="Find semantically related pages based on content similarity."
-        ).with_model("openai", "gpt-4o")
-        
-        pages_list = "\n".join([f"- {p['title']} (ID: {p['id']})" for p in other_pages])
-        prompt = f"Current page: {current_page['title']}\nContent: {current_content[:300]}\n\nOther pages:\n{pages_list}\n\nWhich 3 pages are most related? Return just the page titles."
-        
-        user_message = UserMessage(text=prompt)
-        response = await chat.send_message(user_message)
-        
-        return {"related": response, "analyzed": len(other_pages)}
-    except Exception as e:
-        logging.error(f"Related pages error: {str(e)}")
-        return {"related": [], "error": str(e)}
+        logging.error(f"Pattern insight error: {str(e)}")
+        return {"insights": []}
 
 app.include_router(api_router)
 
