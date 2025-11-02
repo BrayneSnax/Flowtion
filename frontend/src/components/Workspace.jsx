@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
-import { toast } from "sonner";
-import FrequencySelector from "@/components/FrequencySelector";
-import UnifiedSurface from "@/components/UnifiedSurface";
-import ConstellationView from "@/components/ConstellationView";
-import { Toaster } from "@/components/ui/sonner";
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { toast } from 'sonner';
+import FrequencySelector from '@/components/FrequencySelector';
+import DynamicCanvas from '@/components/DynamicCanvas';
+import ConversationalInput from '@/components/ConversationalInput';
+import PatternInsights from '@/components/PatternInsights';
+import { Toaster } from '@/components/ui/sonner';
+import { Home, Lightbulb, LogOut } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -20,203 +22,139 @@ axiosInstance.interceptors.request.use((config) => {
 });
 
 export default function Workspace({ onLogout }) {
-  const { pageId } = useParams();
   const navigate = useNavigate();
-  const [frequency, setFrequency] = useState(null);
-  const [viewMode, setViewMode] = useState('surface'); // surface or constellation
-  const [pages, setPages] = useState([]);
-  const [currentPage, setCurrentPage] = useState(null);
-  const [recentPages, setRecentPages] = useState([]);
-  const [callingPages, setCallingPages] = useState([]);
+  const [view, setView] = useState('canvas'); // canvas or frequency
+  const [frequency, setFrequency] = useState('reflect');
+  const [nodes, setNodes] = useState([]);
+  const [insights, setInsights] = useState([]);
+  const [showInsights, setShowInsights] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Don't auto-show frequency selector, let user navigate freely
-    loadPages();
-  }, []);
-
-  useEffect(() => {
-    if (frequency) {
-      sessionStorage.setItem('frequency', frequency);
-    }
+    loadNodes();
+    loadInsights();
   }, [frequency]);
 
-  useEffect(() => {
-    if (pageId) {
-      loadPage(pageId);
-    } else if (pages.length > 0) {
-      // Auto-select first page if no page selected
-      const firstPage = pages.find(p => !p.parent_id) || pages[0];
-      navigate(`/page/${firstPage.id}`, { replace: true });
-    }
-  }, [pageId, pages]);
-
-  const loadPages = async () => {
+  const loadNodes = async () => {
     try {
-      const response = await axiosInstance.get(`${API}/pages`);
-      const activePages = response.data.filter(p => !p.dissolved_at);
-      setPages(activePages);
-      
-      // Sort by recency for recent pages
-      const sorted = [...activePages].sort((a, b) => 
-        new Date(b.last_viewed_at || b.updated_at) - new Date(a.last_viewed_at || a.updated_at)
-      );
-      setRecentPages(sorted.slice(0, 5));
-      
+      const response = await axiosInstance.get(`${API}/nodes/${frequency}`);
+      setNodes(response.data);
     } catch (error) {
-      toast.error("Failed to load pages");
+      console.error('Failed to load nodes', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadPage = async (id) => {
+  const loadInsights = async () => {
     try {
-      const response = await axiosInstance.get(`${API}/pages/${id}`);
-      setCurrentPage(response.data);
-      
-      // Load related pages (what's calling you)
-      loadRelatedPages(id);
+      const response = await axiosInstance.get(`${API}/patterns/insights`);
+      setInsights(response.data.insights || []);
     } catch (error) {
-      toast.error("Failed to load page");
+      console.error('Failed to load insights', error);
     }
   };
 
-  const loadRelatedPages = async (id) => {
-    try {
-      const response = await axiosInstance.get(`${API}/pages/${id}/related`);
-      // Parse AI response to extract page suggestions
-      setCallingPages([]);
-    } catch (error) {
-      console.error("Could not load related pages", error);
-    }
-  };
-
-  const suggestPage = () => {
-    // Suggest page based on frequency
-    const frequencyStateMap = {
-      focus: ['active', 'germinating'],
-      dream: ['germinating', 'turbulent'],
-      reflect: ['cooling', 'crystallized'],
-      synthesize: ['turbulent', 'active']
-    };
-    
-    const targetStates = frequencyStateMap[frequency] || ['active'];
-    const matchingPages = pages.filter(p => targetStates.includes(p.state));
-    
-    if (matchingPages.length > 0) {
-      const suggested = matchingPages[0];
-      navigate(`/page/${suggested.id}`, { replace: true });
-    } else if (pages.length > 0) {
-      navigate(`/page/${pages[0].id}`, { replace: true });
-    }
-  };
-
-  const createPage = async (state = 'germinating') => {
-    try {
-      const response = await axiosInstance.post(`${API}/pages`, {
-        title: "Untitled",
-        icon: "🌱",
-        state
-      });
-      setPages([...pages, response.data]);
-      navigate(`/page/${response.data.id}`);
-    } catch (error) {
-      toast.error("Failed to create page");
-    }
-  };
-
-  const updatePage = async (id, updates) => {
-    try {
-      const response = await axiosInstance.patch(`${API}/pages/${id}`, updates);
-      setPages(pages.map(p => p.id === id ? response.data : p));
-      if (currentPage?.id === id) {
-        setCurrentPage(response.data);
-      }
-    } catch (error) {
-      toast.error("Failed to update page");
-    }
-  };
-
-  const dissolvePage = async (id) => {
-    try {
-      await axiosInstance.delete(`${API}/pages/${id}`);
-      setPages(pages.filter(p => p.id !== id));
-      
-      if (currentPage?.id === id) {
-        const remainingPages = pages.filter(p => p.id !== id);
-        if (remainingPages.length > 0) {
-          navigate(`/page/${remainingPages[0].id}`);
-        } else {
-          setCurrentPage(null);
-        }
-      }
-      
-      toast.success("Page dissolved");
-    } catch (error) {
-      toast.error("Failed to dissolve page");
+  const handleStructureCreated = (data) => {
+    // Add new nodes to canvas
+    if (data.nodes && data.nodes.length > 0) {
+      setNodes([...nodes, ...data.nodes]);
     }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    sessionStorage.removeItem('frequency');
     onLogout();
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="animate-pulse text-xl text-slate-600">Loading workspace...</div>
+        <div className="animate-pulse text-xl text-slate-600">Loading field...</div>
       </div>
     );
   }
 
-  // Show frequency selector if explicitly requested
-  if (viewMode === 'frequency') {
+  if (view === 'frequency') {
     return (
       <div className="h-screen">
-        <FrequencySelector onSelect={(freq) => {
-          setFrequency(freq);
-          setViewMode('surface');
-        }} />
+        <FrequencySelector
+          onSelect={(freq) => {
+            setFrequency(freq);
+            setView('canvas');
+          }}
+        />
         <Toaster />
       </div>
     );
   }
 
-  // Show appropriate view
   return (
-    <div className="h-screen overflow-hidden">
-      {viewMode === 'constellation' ? (
-        <ConstellationView
-          pages={pages}
-          currentPageId={currentPage?.id}
-          onPageSelect={(id) => {
-            setViewMode('surface');
-            navigate(`/page/${id}`);
-          }}
-          onClose={() => setViewMode('surface')}
+    <div className="h-screen flex flex-col overflow-hidden">
+      {/* Minimal top bar */}
+      <div className="flex items-center justify-between px-6 py-3 bg-white/80 backdrop-blur-sm border-b border-slate-200 z-20">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setView('frequency')}
+            className="p-2 rounded-full hover:bg-slate-100 transition-colors"
+            title="Change frequency"
+            data-testid="home-button"
+          >
+            <Home size={20} className="text-slate-600" />
+          </button>
+          <div className="text-sm font-medium text-slate-600 capitalize">
+            {frequency} field
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {insights.length > 0 && (
+            <button
+              onClick={() => setShowInsights(!showInsights)}
+              className="p-2 rounded-full hover:bg-slate-100 transition-colors relative"
+              title="Pattern insights"
+              data-testid="insights-button"
+            >
+              <Lightbulb size={20} className="text-amber-600" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full" />
+            </button>
+          )}
+          <button
+            onClick={handleLogout}
+            className="p-2 rounded-full hover:bg-slate-100 transition-colors"
+            title="Logout"
+            data-testid="logout-button"
+          >
+            <LogOut size={20} className="text-slate-600" />
+          </button>
+        </div>
+      </div>
+
+      {/* Dynamic Canvas */}
+      <div className="flex-1 relative">
+        <DynamicCanvas
           frequency={frequency}
+          nodes={nodes}
+          onNodeClick={(node) => console.log('Node clicked:', node)}
         />
-      ) : (
-        <UnifiedSurface
-          page={currentPage}
-          pages={pages}
-          recentPages={recentPages}
-          callingPages={callingPages}
-          frequency={frequency}
-          onPageCreate={createPage}
-          onPageUpdate={updatePage}
-          onPageDissolve={dissolvePage}
-          onPageSelect={(id) => navigate(`/page/${id}`)}
-          onViewConstellation={() => setViewMode('constellation')}
-          onChangeFrequency={() => setViewMode('frequency')}
-          onLogout={handleLogout}
-          axiosInstance={axiosInstance}
+      </div>
+
+      {/* Conversational Input */}
+      <ConversationalInput
+        frequency={frequency}
+        onStructureCreated={handleStructureCreated}
+        axiosInstance={axiosInstance}
+      />
+
+      {/* Pattern Insights Panel */}
+      {showInsights && (
+        <PatternInsights
+          insights={insights}
+          onClose={() => setShowInsights(false)}
         />
       )}
+
       <Toaster />
     </div>
   );

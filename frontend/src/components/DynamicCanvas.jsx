@@ -1,0 +1,153 @@
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+
+const frequencyStyles = {
+  focus: {
+    bg: 'from-slate-50 to-slate-100',
+    node: 'bg-slate-800 border-slate-900',
+    text: 'text-slate-100',
+    line: 'stroke-slate-400',
+    grid: true,
+    motion: 'minimal'
+  },
+  dream: {
+    bg: 'from-purple-50 via-pink-50 to-blue-50',
+    node: 'bg-gradient-to-br from-purple-500 to-pink-500 border-purple-600',
+    text: 'text-white',
+    line: 'stroke-purple-300',
+    grid: false,
+    motion: 'fluid'
+  },
+  reflect: {
+    bg: 'from-blue-50 to-cyan-50',
+    node: 'bg-blue-500 border-blue-600',
+    text: 'text-white',
+    line: 'stroke-blue-300',
+    grid: false,
+    motion: 'gentle'
+  },
+  synthesize: {
+    bg: 'from-indigo-50 via-violet-50 to-purple-50',
+    node: 'bg-gradient-to-br from-indigo-600 to-violet-600 border-indigo-700',
+    text: 'text-white',
+    line: 'stroke-indigo-400',
+    grid: false,
+    motion: 'connecting'
+  }
+};
+
+export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
+  const [hoveredNode, setHoveredNode] = useState(null);
+  const style = frequencyStyles[frequency] || frequencyStyles.reflect;
+
+  if (!nodes || nodes.length === 0) {
+    return (
+      <div className={`h-full flex items-center justify-center bg-gradient-to-br ${style.bg} transition-all duration-1000`}>
+        <div className="text-center space-y-4 animate-in fade-in duration-700">
+          <div className="text-6xl opacity-40">✨</div>
+          <div className="text-2xl font-light text-slate-600">Empty field</div>
+          <div className="text-sm text-slate-500">Speak to create structure</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`relative h-full bg-gradient-to-br ${style.bg} transition-all duration-1000 overflow-hidden`}>
+      {/* Grid overlay for focus mode */}
+      {style.grid && (
+        <div className="absolute inset-0 opacity-20">
+          <div className="h-full w-full" style={{
+            backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)',
+            backgroundSize: '40px 40px'
+          }} />
+        </div>
+      )}
+
+      {/* SVG for connections */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none">
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        {nodes.map((node, i) => {
+          if (i === nodes.length - 1) return null;
+          const nextNode = nodes[i + 1];
+          return (
+            <line
+              key={`${node.id}-${nextNode.id}`}
+              x1={node.position.x + 100}
+              y1={node.position.y + 50}
+              x2={nextNode.position.x + 100}
+              y2={nextNode.position.y + 50}
+              className={`${style.line} opacity-30`}
+              strokeWidth="2"
+              strokeDasharray={style.motion === 'fluid' ? '5,5' : '0'}
+            />
+          );
+        })}
+      </svg>
+
+      {/* Nodes */}
+      <div className="relative h-full p-8">
+        {nodes.map((node, index) => {
+          const motionVariants = {
+            minimal: { scale: 1 },
+            fluid: { scale: [1, 1.05, 1], transition: { repeat: Infinity, duration: 3 } },
+            gentle: { y: [0, -5, 0], transition: { repeat: Infinity, duration: 4 } },
+            connecting: { rotate: [0, 2, -2, 0], transition: { repeat: Infinity, duration: 5 } }
+          };
+
+          return (
+            <motion.div
+              key={node.id}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ 
+                opacity: 1, 
+                scale: 1,
+                ...motionVariants[style.motion]
+              }}
+              whileHover={{ scale: 1.05 }}
+              style={{
+                position: 'absolute',
+                left: node.position.x,
+                top: node.position.y,
+              }}
+              className="cursor-pointer"
+              onClick={() => onNodeClick?.(node)}
+              onMouseEnter={() => setHoveredNode(node.id)}
+              onMouseLeave={() => setHoveredNode(null)}
+              data-testid={`node-${node.id}`}
+            >
+              <div className={`${style.node} rounded-2xl px-6 py-4 min-w-[200px] shadow-xl border-2 transition-all ${
+                hoveredNode === node.id ? 'shadow-2xl scale-105' : ''
+              }`}>
+                <div className={`${style.text} font-medium mb-1`}>
+                  {node.title}
+                </div>
+                {node.tags && node.tags.length > 0 && (
+                  <div className="flex gap-2 flex-wrap mt-2">
+                    {node.tags.map((tag, i) => (
+                      <span
+                        key={i}
+                        className="text-xs px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-sm"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="text-xs opacity-60 mt-2">{node.type}</div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
