@@ -99,6 +99,26 @@ export default function UnifiedSurface({
     }
   };
 
+  const handleStewardAction = (intent) => {
+    switch (intent) {
+      case 'keep':
+        toast.success('Page saved');
+        break;
+      case 'connect':
+        setSearchOpen(true);
+        toast('Select a page to link to');
+        break;
+      case 'remind':
+        toast.success('Reminder set for tomorrow');
+        break;
+      case 'rest':
+        setPauseVisible(true);
+        break;
+      default:
+        break;
+    }
+  };
+
   if (!page) {
     return (
       <div className={`h-screen flex items-center justify-center bg-gradient-to-br ${frequencyBg[frequency]} p-8`}>
