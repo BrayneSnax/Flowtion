@@ -69,11 +69,6 @@ export default function UnifiedSurface({
         e.preventDefault();
         setSearchOpen(true);
       }
-      // Shift+F to change frequency
-      if (e.shiftKey && e.key === 'F') {
-        e.preventDefault();
-        onChangeFrequency();
-      }
       // Shift+C to view constellation
       if (e.shiftKey && e.key === 'C') {
         e.preventDefault();
