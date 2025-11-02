@@ -59,6 +59,16 @@ export default function UnifiedSurface({
 
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Escape to pause
+      if (e.key === 'Escape' && !pauseVisible && !searchOpen) {
+        e.preventDefault();
+        setPauseVisible(true);
+      }
+      // Cmd/Ctrl+K for search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
       // Shift+F to change frequency
       if (e.shiftKey && e.key === 'F') {
         e.preventDefault();
@@ -73,7 +83,7 @@ export default function UnifiedSurface({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [pauseVisible, searchOpen]);
 
   const handleTitleChange = (e) => {
     const newTitle = e.target.value;
