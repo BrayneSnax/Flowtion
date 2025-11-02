@@ -6,6 +6,7 @@ import OrientationHeader from "@/components/OrientationHeader";
 import PauseLine from "@/components/PauseLine";
 import TuningForkPalette from "@/components/TuningForkPalette";
 import MycelialView from "@/components/MycelialView";
+import AISteward from "@/components/AISteward";
 import { useMetaphorMode, useFrictionDetection, getLabel } from "@/hooks/usePDA";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
