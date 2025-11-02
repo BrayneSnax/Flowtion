@@ -44,7 +44,14 @@ export default function UnifiedSurface({
   const [title, setTitle] = useState(page?.title || "");
   const [showRecent, setShowRecent] = useState(false);
   const [showStates, setShowStates] = useState(false);
+  const [pauseVisible, setPauseVisible] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const titleRef = useRef(null);
+  const { enabled: metaphorMode, toggle: toggleMetaphor } = useMetaphorMode();
+  const { recordFriction } = useFrictionDetection(() => {
+    setPauseVisible(true);
+  });
 
   useEffect(() => {
     setTitle(page?.title || "");
