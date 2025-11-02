@@ -1,4 +1,4 @@
-export default function OrientationHeader({ breadcrumb, intent, options }) {
+export default function OrientationHeader({ breadcrumb, intent, options, heartbeat }) {
   return (
     <section 
       role="region" 
@@ -19,6 +19,13 @@ export default function OrientationHeader({ breadcrumb, intent, options }) {
       <span className="text-slate-700">
         Purpose: <strong className="font-medium text-slate-900">{intent}</strong>
       </span>
+
+      {heartbeat && (
+        <>
+          <span className="hidden sm:inline text-slate-500">•</span>
+          <span className="text-xs text-slate-500 italic hidden sm:inline">{heartbeat}</span>
+        </>
+      )}
       
       {options && options.length > 0 && (
         <>
