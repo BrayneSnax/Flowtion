@@ -173,11 +173,14 @@ export default function Workspace({ onLogout }) {
     );
   }
 
-  // Show frequency selector if not set
-  if (!frequency) {
+  // Show frequency selector if explicitly requested
+  if (viewMode === 'frequency') {
     return (
       <div className="h-screen">
-        <FrequencySelector onSelect={setFrequency} />
+        <FrequencySelector onSelect={(freq) => {
+          setFrequency(freq);
+          setViewMode('surface');
+        }} />
         <Toaster />
       </div>
     );
