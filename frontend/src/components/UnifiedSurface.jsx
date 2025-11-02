@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, Layers, LogOut, Circle, Search, Settings } from "lucide-react";
+import { Sparkles, Layers, LogOut, Circle, Search, Settings, Home } from "lucide-react";
 import { toast } from "sonner";
 import BlockEditor from "@/components/BlockEditor";
 import OrientationHeader from "@/components/OrientationHeader";
