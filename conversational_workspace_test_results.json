@@ -1,0 +1,78 @@
+{
+  "timestamp": "2025-11-03T01:31:03.415407",
+  "total_tests": 14,
+  "passed_tests": 13,
+  "success_rate": 0.9285714285714286,
+  "results": [
+    {
+      "test": "API Root",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "User Registration",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "User Login",
+      "success": false,
+      "details": "Expected 200, got 401 - Invalid credentials"
+    },
+    {
+      "test": "Token Verification (Get Nodes)",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Converse with Hermes 4",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Converse with OpenAI",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Get All Nodes",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Get Nodes by Frequency (reflect)",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Get Nodes by Frequency (focus)",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Get Nodes by Frequency (dream)",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Get Nodes by Frequency (synthesize)",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Update Node",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Pattern Insights (Hermes)",
+      "success": true,
+      "details": ""
+    },
+    {
+      "test": "Pattern Insights (OpenAI)",
+      "success": true,
+      "details": ""
+    }
+  ]
+}
