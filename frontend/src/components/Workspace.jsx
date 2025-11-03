@@ -31,6 +31,8 @@ export default function Workspace({ onLogout }) {
   const [showInsights, setShowInsights] = useState(false);
   const [loading, setLoading] = useState(true);
   const [modelPreference, setModelPreference] = useState('hermes'); // hermes or openai
+  const [conversationMessages, setConversationMessages] = useState([]);
+  const [showConversation, setShowConversation] = useState(true);
 
   useEffect(() => {
     loadNodes();
