@@ -64,6 +64,25 @@ export default function Workspace({ onLogout }) {
     if (data.nodes && data.nodes.length > 0) {
       setNodes([...nodes, ...data.nodes]);
     }
+    
+    // Add AI response to conversation
+    if (data.message) {
+      setConversationMessages(prev => [...prev, {
+        role: 'assistant',
+        content: data.message,
+        nodes: data.nodes || [],
+        timestamp: new Date().toISOString()
+      }]);
+    }
+  };
+
+  const handleUserInput = (userText) => {
+    // Add user message to conversation
+    setConversationMessages(prev => [...prev, {
+      role: 'user',
+      content: userText,
+      timestamp: new Date().toISOString()
+    }]);
   };
 
   const handleLogout = () => {
