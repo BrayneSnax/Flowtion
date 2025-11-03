@@ -621,7 +621,7 @@ async def update_node(node_id: str, updates: dict, user_id: str = Depends(get_cu
 
 @api_router.post("/nodes/archive-all")
 async def archive_all_nodes(frequency: str, user_id: str = Depends(get_current_user)):
-    """Archive all nodes in a frequency - creates snapshot and clears field"""
+    """Archive all nodes in a frequency - creates rich snapshot"""
     
     # Get all nodes in this frequency
     nodes = await db.nodes.find(
@@ -630,20 +630,44 @@ async def archive_all_nodes(frequency: str, user_id: str = Depends(get_current_u
     ).to_list(1000)
     
     if nodes:
+        # Build archive name from first few node titles
+        sample_titles = [n.get("title", "")[:30] for n in nodes[:3]]
+        archive_name = f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} {frequency} • {', '.join(sample_titles[:2])}"
+        if len(nodes) > 2:
+            archive_name += f" +{len(nodes) - 2} more"
+        
+        # Count by type
+        type_counts = {}
+        for node in nodes:
+            node_type = node.get("type", "thought")
+            type_counts[node_type] = type_counts.get(node_type, 0) + 1
+        
         # Create archive snapshot
+        archive_id = str(uuid.uuid4())
         await db.archived_sessions.insert_one({
+            "id": archive_id,
             "user_id": user_id,
             "frequency": frequency,
+            "name": archive_name,
             "nodes": nodes,
+            "node_ids": [n.get("id") for n in nodes],
+            "type_counts": type_counts,
             "archived_at": datetime.now(timezone.utc).isoformat(),
-            "node_count": len(nodes)
+            "node_count": len(nodes),
+            "tags": []  # For future tagging
         })
         
-        # Delete nodes from active field
-        await db.nodes.delete_many({"user_id": user_id, "frequency": frequency})
+        # Mark nodes as archived instead of deleting
+        await db.nodes.update_many(
+            {"user_id": user_id, "frequency": frequency},
+            {"$set": {"archived": True, "archived_at": datetime.now(timezone.utc).isoformat()}}
+        )
     
     return {
         "archived": len(nodes),
+        "archive_id": archive_id if nodes else None,
+        "archive_name": archive_name if nodes else None,
+        "type_counts": type_counts if nodes else {},
         "message": f"Archived {len(nodes)} nodes from {frequency} field"
     }
 
