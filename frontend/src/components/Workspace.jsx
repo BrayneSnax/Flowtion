@@ -58,10 +58,35 @@ export default function Workspace({ onLogout }) {
     }
   };
 
-  const handleStructureCreated = (data) => {
+  const handleStructureCreated = (data, userInput, model) => {
     // Add new nodes to canvas
     if (data.nodes && data.nodes.length > 0) {
       setNodes([...nodes, ...data.nodes]);
+    }
+    
+    // Add to conversation history
+    if (userInput) {
+      setConversationMessages(prev => [
+        ...prev,
+        { role: 'user', content: userInput }
+      ]);
+    }
+    
+    if (data.message) {
+      setConversationMessages(prev => [
+        ...prev,
+        { 
+          role: 'assistant', 
+          content: data.message,
+          model: model || 'hermes',
+          nodeCount: data.nodes?.length || 0
+        }
+      ]);
+      
+      // Auto-show conversation if hidden
+      if (!showConversation && conversationMessages.length === 0) {
+        setShowConversation(true);
+      }
     }
   };
 
