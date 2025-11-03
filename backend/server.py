@@ -203,7 +203,7 @@ Always invitational. Always warm. Never mechanical.
         # Parse AI response
         try:
             structure = json.loads(response)
-        except:
+        except (json.JSONDecodeError, TypeError):
             # Fallback
             structure = {
                 "action": "create",
