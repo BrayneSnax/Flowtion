@@ -223,10 +223,44 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
             <motion.div
               key={node.id}
               initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ 
-                opacity: 1, 
+              animate={{
+                opacity: 1,
                 scale: 1,
-                ...motionVariants[style.motion]
+                ...(() => {
+                  const nodeStyle = nodeTypeStyles[node.type] || nodeTypeStyles.thought;
+                  const breathingScale = isBreathing ? [1, 1.02, 1] : 1;
+                  
+                  // Behavioral motion based on node type
+                  switch(nodeStyle.behavior) {
+                    case 'pulse': // Ritual - breathing
+                      return {
+                        scale: breathingScale,
+                        transition: { duration: 3, repeat: Infinity, ease: "easeInOut" }
+                      };
+                    case 'orbit': // Pattern - gentle rotation
+                      return {
+                        rotate: isBreathing ? [0, 360] : 0,
+                        transition: { duration: 20, repeat: Infinity, ease: "linear" }
+                      };
+                    case 'expand': // Project - slight outward drift
+                      return {
+                        x: isBreathing ? [0, 5, 0] : 0,
+                        y: isBreathing ? [0, -5, 0] : 0,
+                        transition: { duration: 4, repeat: Infinity, ease: "easeInOut" }
+                      };
+                    case 'seek': // Question - curious drift
+                      return {
+                        x: isBreathing ? [0, 3, -3, 0] : 0,
+                        y: isBreathing ? [0, -3, 3, 0] : 0,
+                        transition: { duration: 5, repeat: Infinity, ease: "easeInOut" }
+                      };
+                    default: // Thought - float
+                      return {
+                        y: isBreathing ? [0, -3, 0] : 0,
+                        transition: { duration: 2.5, repeat: Infinity, ease: "easeInOut" }
+                      };
+                  }
+                })()
               }}
               whileHover={{ scale: 1.05 }}
               style={{
