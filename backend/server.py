@@ -353,9 +353,11 @@ async def update_node(node_id: str, updates: dict, user_id: str = Depends(get_cu
 # ==================== Pattern Recognition ====================
 
 @api_router.get("/patterns/insights")
-async def get_pattern_insights(user_id: str = Depends(get_current_user)):
+async def get_pattern_insights(user_id: str = Depends(get_current_user), model: str = "hermes"):
     """Analyze user's creative rhythms with affective language"""
-    if not EMERGENT_LLM_KEY:
+    use_hermes = model == "hermes" and NOUS_API_KEY
+    
+    if not NOUS_API_KEY and not EMERGENT_LLM_KEY:
         return {"insights": []}
     
     try:
@@ -368,22 +370,6 @@ async def get_pattern_insights(user_id: str = Depends(get_current_user)):
         if len(patterns) < 5:
             return {"insights": []}
         
-        # Ask AI to identify patterns with affective language
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"pattern_{user_id}",
-            system_message="""You notice creative rhythms and patterns. Speak in affective, embodied language.
-
-Not: "You created 5 synthesis nodes after focus sessions"
-But: "Your rhythm leans contemplative after sharp work - like exhaling after intensity"
-
-Not: "High activity in dream frequency"
-But: "You've been living in the associative flow lately - ideas branching, connections multiplying"
-
-Be specific but poetic. Grounded but warm. Notice tempo, texture, emotional arc.
-"""
-        ).with_model("openai", "gpt-4o")
-        
         # Build pattern context
         pattern_context = []
         for p in patterns[:20]:
@@ -393,11 +379,47 @@ Be specific but poetic. Grounded but warm. Notice tempo, texture, emotional arc.
         
         pattern_summary = "\n".join(pattern_context)
         
+        system_message = """You notice creative rhythms and patterns. Speak in affective, embodied language.
+
+Not: "You created 5 synthesis nodes after focus sessions"
+But: "Your rhythm leans contemplative after sharp work - like exhaling after intensity"
+
+Not: "High activity in dream frequency"
+But: "You've been living in the associative flow lately - ideas branching, connections multiplying"
+
+Be specific but poetic. Grounded but warm. Notice tempo, texture, emotional arc."""
+
         prompt = f"Recent creative activity:\n{pattern_summary}\n\nWhat rhythms emerge? Describe the felt quality of their pattern. 2-3 sentences, warm and specific."
-        user_message = UserMessage(text=prompt)
-        response = await chat.send_message(user_message)
         
-        return {"insights": [response]}
+        # Call AI based on preference
+        if use_hermes:
+            client = AsyncOpenAI(
+                api_key=NOUS_API_KEY,
+                base_url=NOUS_API_BASE
+            )
+            
+            response = await client.chat.completions.create(
+                model="hermes-3-llama-3.1-405b",
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.8,
+                max_tokens=200
+            )
+            
+            ai_response = response.choices[0].message.content
+        else:
+            chat = LlmChat(
+                api_key=EMERGENT_LLM_KEY,
+                session_id=f"pattern_{user_id}",
+                system_message=system_message
+            ).with_model("openai", "gpt-4o")
+            
+            user_message = UserMessage(text=prompt)
+            ai_response = await chat.send_message(user_message)
+        
+        return {"insights": [ai_response]}
     except Exception as e:
         logging.error(f"Pattern insight error: {str(e)}")
         return {"insights": []}
