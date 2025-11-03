@@ -25,7 +25,7 @@ async def test_hermes():
         )
         
         response = await client.chat.completions.create(
-            model="hermes-3-llama-3.1-405b",
+            model="Hermes-4-70B",
             messages=[
                 {"role": "system", "content": "You are a warm, invitational assistant."},
                 {"role": "user", "content": "I want to start exploring morning rituals"}
