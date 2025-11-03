@@ -460,13 +460,30 @@ You're the architect. Clarify. Structure. Refine. Make it coherent."""
                 await db.nodes.insert_one(node.model_dump())
                 created_nodes.append(node)
         
-        # Log pattern
+        # Log pattern with resonance metrics
         await db.patterns.insert_one({
             "user_id": user_id,
             "frequency": data.current_frequency,
             "action": structure.get("action"),
             "text": data.text,
             "model": "hermes" if use_hermes else "openai",
+            "tone": structure.get("tone", "neutral"),
+            "tone_strength": structure.get("tone_strength", 0.5),
+            "node_count": len(created_nodes),
+            "node_types": [n.type for n in created_nodes],
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+        # Log resonance metrics
+        await db.resonance_metrics.insert_one({
+            "user_id": user_id,
+            "session_id": f"session_{datetime.now(timezone.utc).date().isoformat()}",
+            "frequency_used": data.current_frequency,
+            "node_type_distribution": {node_type: sum(1 for n in created_nodes if n.type == node_type) 
+                                      for node_type in ["thought", "pattern", "ritual", "project", "question"]},
+            "amplitude": len(data.text),  # Input length as proxy for amplitude
+            "coherence_signal": structure.get("tone_strength", 0.5),  # Tone strength as coherence proxy
+            "model_used": "hermes" if use_hermes else "openai",
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
