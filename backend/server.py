@@ -174,21 +174,33 @@ def parse_natural_response(text: str, user_input: str, frequency: str) -> Dict[s
     elif any(word in text_lower for word in ["update", "modify", "change", "shift"]):
         action = "modify"
     
-    # Extract potential node titles (quoted phrases or emphasized concepts)
-    quoted = re.findall(r'"([^"]+)"', text)
+    # Extract potential node titles - be AGGRESSIVE
     nodes = []
     
-    if quoted:
-        for title in quoted[:3]:  # max 3 nodes
-            nodes.append({
-                "title": title,
-                "type": "thought",
-                "tags": [],
-                "content": user_input
-            })
-    elif action == "create" and not nodes:
-        # Fallback: create from user input
-        nodes.append({
+    # Method 1: Double quotes
+    double_quoted = re.findall(r'"([^"]+)"', text)
+    nodes.extend([{"title": t, "type": "thought", "tags": [], "content": user_input} for t in double_quoted[:5]])
+    
+    # Method 2: Single quotes
+    single_quoted = re.findall(r"'([^']+)'", text)
+    nodes.extend([{"title": t, "type": "thought", "tags": [], "content": user_input} for t in single_quoted[:5]])
+    
+    # Method 3: Title case phrases (likely concepts)
+    title_case = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b', text)
+    nodes.extend([{"title": t, "type": "thought", "tags": [], "content": user_input} for t in title_case[:3]])
+    
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_nodes = []
+    for node in nodes:
+        title_lower = node["title"].lower()
+        if title_lower not in seen and len(node["title"]) > 3:
+            seen.add(title_lower)
+            unique_nodes.append(node)
+    
+    # Fallback: if still no nodes, create from user input
+    if not unique_nodes:
+        unique_nodes.append({
             "title": user_input[:60] if len(user_input) > 60 else user_input,
             "type": "thought",
             "tags": [],
@@ -197,7 +209,7 @@ def parse_natural_response(text: str, user_input: str, frequency: str) -> Dict[s
     
     return {
         "action": action,
-        "nodes": nodes,
+        "nodes": unique_nodes[:8],  # Max 8 nodes per response
         "links": [],
         "message": text  # Natural language message from AI
     }
