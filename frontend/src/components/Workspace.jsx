@@ -124,6 +124,14 @@ export default function Workspace({ onLogout }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleArchiveAll}
+            className="p-2 rounded-full hover:bg-slate-100 transition-colors"
+            title="Archive and clear field"
+            data-testid="archive-button"
+          >
+            <Archive size={20} className="text-slate-600" />
+          </button>
           {insights.length > 0 && (
             <button
               onClick={() => setShowInsights(!showInsights)}
