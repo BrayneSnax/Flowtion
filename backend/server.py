@@ -538,12 +538,24 @@ You're the architect. Clarify. Structure. Refine. Make it coherent."""
                 await db.nodes.insert_one(node.model_dump())
                 created_nodes.append(node)
         
-        # If all nodes were duplicates, inform user
-        duplicate_count = len(structure.get("nodes", [])) - node_count
-        if duplicate_count > 0 and node_count == 0:
-            structure["message"] += f"\n\n(Note: {duplicate_count} similar node{'s' if duplicate_count > 1 else ''} already exist in this field)"
+        # Build response message with duplicate handling
+        response_message = structure.get("message", "Added to the field")
         
-        # Log pattern with resonance metrics
+        if duplicate_warnings:
+            response_message += "\n\n"
+            for dup in duplicate_warnings:
+                if dup.get("suggestion") == "same_type":
+                    response_message += f"\n• '{dup['new_title']}' already exists as {dup['existing_type']}. "
+                elif dup.get("suggestion") == "cross_type":
+                    response_message += f"\n• '{dup['new_title']}' exists as {dup['existing_type']}, creating as {dup['new_type']}. "
+        
+        return {
+            "action": structure.get("action"),
+            "nodes": [n.model_dump() for n in created_nodes],
+            "links": structure.get("links", []),
+            "message": response_message,
+            "duplicate_warnings": duplicate_warnings if duplicate_warnings else None
+        }
         await db.patterns.insert_one({
             "user_id": user_id,
             "frequency": data.current_frequency,
