@@ -681,6 +681,63 @@ async def delete_node(node_id: str, user_id: str = Depends(get_current_user)):
     
     return {"deleted": True, "node_id": node_id}
 
+@api_router.post("/nodes/restore-from-archive")
+async def restore_from_archive(archive_id: str, node_ids: List[str], user_id: str = Depends(get_current_user)):
+    """Restore specific nodes from an archive"""
+    
+    # Get archive
+    archive = await db.archived_sessions.find_one(
+        {"id": archive_id, "user_id": user_id},
+        {"_id": 0}
+    )
+    
+    if not archive:
+        raise HTTPException(status_code=404, detail="Archive not found")
+    
+    # Find requested nodes in archive
+    archived_nodes = archive.get("nodes", [])
+    nodes_to_restore = [n for n in archived_nodes if n.get("id") in node_ids]
+    
+    if not nodes_to_restore:
+        raise HTTPException(status_code=404, detail="Nodes not found in archive")
+    
+    # Restore nodes (unmark as archived)
+    restored_count = 0
+    for node in nodes_to_restore:
+        node["archived"] = False
+        node["restored_at"] = datetime.now(timezone.utc).isoformat()
+        await db.nodes.update_one(
+            {"id": node.get("id")},
+            {"$set": node},
+            upsert=True
+        )
+        restored_count += 1
+    
+    return {
+        "restored": restored_count,
+        "node_ids": node_ids,
+        "message": f"Restored {restored_count} node{'s' if restored_count > 1 else ''}"
+    }
+
+@api_router.get("/archives")
+async def get_archives(user_id: str = Depends(get_current_user)):
+    """Get all archives for user"""
+    archives = await db.archived_sessions.find(
+        {"user_id": user_id},
+        {"_id": 0}
+    ).sort("archived_at", -1).to_list(100)
+    
+    # Return simplified view
+    return [{
+        "id": a.get("id"),
+        "name": a.get("name"),
+        "frequency": a.get("frequency"),
+        "node_count": a.get("node_count"),
+        "type_counts": a.get("type_counts", {}),
+        "archived_at": a.get("archived_at"),
+        "node_ids": a.get("node_ids", [])
+    } for a in archives]
+
 # ==================== Pattern Recognition ====================
 
 @api_router.get("/patterns/insights")
