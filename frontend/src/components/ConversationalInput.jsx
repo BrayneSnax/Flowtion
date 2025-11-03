@@ -33,7 +33,8 @@ export default function ConversationalInput({ frequency, onStructureCreated, axi
     try {
       const response = await axiosInstance.post(`${API}/converse`, {
         text: userInput,
-        current_frequency: frequency
+        current_frequency: frequency,
+        model_preference: modelPreference
       });
 
       onStructureCreated?.(response.data);
