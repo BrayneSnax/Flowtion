@@ -375,8 +375,10 @@ async def update_node(node_id: str, updates: dict, user_id: str = Depends(get_cu
 async def get_pattern_insights(user_id: str = Depends(get_current_user), model: str = "hermes"):
     """Analyze user's creative rhythms with affective language"""
     use_hermes = model == "hermes" and NOUS_API_KEY
+    use_openai_direct = model == "openai" and OPENAI_API_KEY
+    use_emergent = model == "openai" and not OPENAI_API_KEY and EMERGENT_LLM_KEY
     
-    if not NOUS_API_KEY and not EMERGENT_LLM_KEY:
+    if not NOUS_API_KEY and not OPENAI_API_KEY and not EMERGENT_LLM_KEY:
         return {"insights": []}
     
     try:
@@ -423,12 +425,29 @@ Be specific but poetic. Grounded but warm. Notice tempo, texture, emotional arc.
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.8,
+                temperature=0.7,
+                top_p=0.95,
                 max_tokens=200
             )
             
             ai_response = response.choices[0].message.content
-        else:
+            
+        elif use_openai_direct:
+            client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+            
+            response = await client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=200
+            )
+            
+            ai_response = response.choices[0].message.content
+            
+        elif use_emergent:
             chat = LlmChat(
                 api_key=EMERGENT_LLM_KEY,
                 session_id=f"pattern_{user_id}",
