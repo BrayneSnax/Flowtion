@@ -391,23 +391,6 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Type
-                    </label>
-                    <select
-                      value={editingNode.type}
-                      onChange={(e) => setEditingNode({ ...editingNode, type: e.target.value })}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="thought">💭 Thought</option>
-                      <option value="pattern">🔄 Pattern</option>
-                      <option value="ritual">🕯️ Ritual</option>
-                      <option value="project">🎯 Project</option>
-                      <option value="question">❓ Question</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
                       Tags (comma-separated)
                     </label>
                     <input
