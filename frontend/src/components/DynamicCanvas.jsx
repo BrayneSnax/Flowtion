@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { X, Edit2, Trash2 } from 'lucide-react';
 
 // Node type styles - each type gets unique visual treatment AND motion
 const nodeTypeStyles = {
