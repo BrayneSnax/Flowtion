@@ -68,6 +68,21 @@ export default function Workspace({ onLogout }) {
     onLogout();
   };
 
+  const handleArchiveAll = async () => {
+    if (!window.confirm(`Archive all nodes from ${frequency} field? They'll be saved but cleared from view.`)) {
+      return;
+    }
+
+    try {
+      const response = await axiosInstance.post(`${API}/nodes/archive-all?frequency=${frequency}`);
+      toast.success(response.data.message);
+      setNodes([]); // Clear from UI
+      loadNodes(); // Refresh
+    } catch (error) {
+      toast.error('Could not archive nodes');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-50 to-blue-50">
