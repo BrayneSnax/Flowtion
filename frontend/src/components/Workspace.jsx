@@ -39,20 +39,9 @@ export default function Workspace({ onLogout }) {
     loadInsights();
   }, [frequency]);
 
-  const loadNodes = async () => {
-    try {
-      const response = await axiosInstance.get(`${API}/nodes/${frequency}`);
-      setNodes(response.data);
-    } catch (error) {
-      console.error('Failed to load nodes', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const loadInsights = async () => {
     try {
-      const response = await axiosInstance.get(`${API}/patterns/insights?model=${modelPreference}`);
+      const response = await axiosInstance.get(`${API}/patterns/insights?model=hermes`);
       setInsights(response.data.insights || []);
     } catch (error) {
       console.error('Failed to load insights', error);
