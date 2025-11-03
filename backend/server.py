@@ -186,44 +186,59 @@ async def login(data: UserLogin):
 
 # ==================== Conversational Builder ====================
 
+def parse_artifacts_from_response(text: str, user_id: str, conversation_id: str) -> List[Dict[str, Any]]:
+    """Extract artifact specifications from AI response"""
+    artifacts = []
+    
+    # Pattern: ARTIFACT[type:..., style:{...}, content:{...}]
+    pattern = r'ARTIFACT\[([^\]]+)\]'
+    matches = re.findall(pattern, text)
+    
+    for match in matches:
+        try:
+            # Parse artifact spec
+            artifact_data = {"user_id": user_id, "conversation_id": conversation_id}
+            
+            # Extract type
+            type_match = re.search(r'type:(\w+)', match)
+            if type_match:
+                artifact_data["type"] = type_match.group(1)
+            
+            # Extract style (JSON-like)
+            style_match = re.search(r'style:\{([^}]+)\}', match)
+            if style_match:
+                style_str = "{" + style_match.group(1) + "}"
+                try:
+                    artifact_data["style"] = json.loads(style_str.replace("'", '"'))
+                except:
+                    artifact_data["style"] = {}
+            
+            # Extract content (JSON-like)
+            content_match = re.search(r'content:\{([^}]+)\}', match)
+            if content_match:
+                content_str = "{" + content_match.group(1) + "}"
+                try:
+                    artifact_data["content"] = json.loads(content_str.replace("'", '"'))
+                except:
+                    artifact_data["content"] = {}
+            
+            if "type" in artifact_data:
+                artifacts.append(artifact_data)
+        except Exception as e:
+            logging.error(f"Failed to parse artifact: {e}")
+            continue
+    
+    return artifacts
+
 def parse_natural_response(text: str, user_input: str, frequency: str) -> Dict[str, Any]:
-    """Parse natural language AI response - extremely loose, let things emerge"""
+    """Parse AI response - extract conversation and artifact specs"""
     
-    # Just look for anything in quotes or emphasized - AI chooses what manifests
-    nodes = []
-    
-    # Extract quoted phrases (single or double quotes)
-    quoted = re.findall(r'["\']([^"\']+)["\']', text)
-    
-    for item in quoted[:10]:  # Max 10 per response, but no other limits
-        if len(item) > 2:  # Basic sanity check
-            nodes.append({
-                "title": item,
-                "type": "element",  # Generic - AI defines meaning through context
-                "tags": [],
-                "content": user_input,
-                "tone": "neutral",
-                "tone_strength": 0.5
-            })
-    
-    # If nothing quoted, let the whole input become something if it's short enough
-    if not nodes and len(user_input) < 100:
-        nodes.append({
-            "title": user_input,
-            "type": "element",
-            "tags": [],
-            "content": user_input,
-            "tone": "neutral",
-            "tone_strength": 0.5
-        })
+    # Clean text of artifact markers for display
+    display_text = re.sub(r'ARTIFACT\[[^\]]+\]', '', text).strip()
     
     return {
-        "action": "manifest",  # Everything is just manifestation
-        "nodes": nodes,
-        "links": [],
-        "message": text,
-        "tone": "neutral",
-        "tone_strength": 0.5
+        "message": display_text if display_text else text,
+        "raw_text": text  # Keep raw for artifact parsing
     }
 
 @api_router.post("/converse")
