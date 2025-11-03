@@ -29,6 +29,11 @@ export default function ConversationalInput({ frequency, onStructureCreated, axi
     setProcessing(true);
     const userInput = input;
     setInput('');
+    
+    // Pass user input to parent
+    if (onUserInput) {
+      onUserInput(userInput);
+    }
 
     try {
       const response = await axiosInstance.post(`${API}/converse`, {
@@ -37,10 +42,17 @@ export default function ConversationalInput({ frequency, onStructureCreated, axi
         model_preference: modelPreference
       });
 
-      onStructureCreated?.(response.data);
+      // Pass full response data to parent
+      onStructureCreated?.({
+        ...response.data,
+        action: response.data.action
+      });
       
-      if (response.data.message) {
-        toast.success(response.data.message);
+      // Show brief toast confirmation
+      if (response.data.nodes && response.data.nodes.length > 0) {
+        toast.success(`${response.data.nodes.length} node${response.data.nodes.length > 1 ? 's' : ''} added to field`, {
+          duration: 2000
+        });
       }
     } catch (error) {
       toast.error('Could not process that');
