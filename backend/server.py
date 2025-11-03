@@ -173,119 +173,43 @@ async def login(data: UserLogin):
 # ==================== Conversational Builder ====================
 
 def parse_natural_response(text: str, user_input: str, frequency: str) -> Dict[str, Any]:
-    """Parse natural language AI response into structure using soft heuristics"""
-    text_lower = text.lower()
-    user_lower = user_input.lower()
+    """Parse natural language AI response - extremely loose, let things emerge"""
     
-    # Detect emotional/energy tone from user input
-    tone = "neutral"
-    tone_strength = 0.5
-    
-    # Detect struggle/friction
-    if any(word in user_lower for word in ["stuck", "blocked", "frustrated", "difficult", "struggling"]):
-        tone = "friction"
-        tone_strength = 0.7
-    # Detect flow/ease
-    elif any(word in user_lower for word in ["flowing", "easy", "clear", "smooth", "aligned"]):
-        tone = "flow"
-        tone_strength = 0.8
-    # Detect seeking/questioning
-    elif any(word in user_lower for word in ["wondering", "curious", "exploring", "seeking", "what if"]):
-        tone = "inquiry"
-        tone_strength = 0.6
-    # Detect momentum/energy
-    elif any(word in user_lower for word in ["excited", "ready", "momentum", "building", "emerging"]):
-        tone = "emergence"
-        tone_strength = 0.9
-    
-    # Detect action intent (soft signals, not commands)
-    action = "create"  # default
-    if any(word in text_lower for word in ["connect", "link", "weav", "merge", "join", "between", "relates"]):
-        action = "link"
-    elif any(word in text_lower for word in ["remember", "recall", "pattern", "notice", "observe"]):
-        action = "recall"
-    elif any(word in text_lower for word in ["pause", "rest", "archive", "set aside"]):
-        action = "archive"
-    elif any(word in text_lower for word in ["update", "modify", "change", "shift", "evolve"]):
-        action = "modify"
-    
-    # Determine node type based on keywords and frequency
-    def infer_node_type(title: str) -> str:
-        title_lower = title.lower()
-        
-        # Pattern: recurring structures
-        if any(word in title_lower for word in ["pattern", "cycle", "rhythm", "habit", "routine"]):
-            return "pattern"
-        
-        # Ritual: practices and ceremonies
-        if any(word in title_lower for word in ["ritual", "practice", "ceremony", "morning", "evening", "daily"]):
-            return "ritual"
-        
-        # Project: goals and endeavors
-        if any(word in title_lower for word in ["project", "goal", "plan", "framework", "system", "build"]):
-            return "project"
-        
-        # Question: inquiries and explorations
-        if "?" in title or any(word in title_lower for word in ["what", "why", "how", "when", "could", "would"]):
-            return "question"
-        
-        # Default: thought
-        return "thought"
-    
-    # Extract potential node titles - be AGGRESSIVE
+    # Just look for anything in quotes or emphasized - AI chooses what manifests
     nodes = []
     
-    # Method 1: Double quotes
-    double_quoted = re.findall(r'"([^"]+)"', text)
-    nodes.extend([{"title": t, "type": infer_node_type(t), "tags": [], "content": user_input, "tone": tone, "tone_strength": tone_strength} for t in double_quoted[:5]])
+    # Extract quoted phrases (single or double quotes)
+    quoted = re.findall(r'["\']([^"\']+)["\']', text)
     
-    # Method 2: Single quotes
-    single_quoted = re.findall(r"'([^']+)'", text)
-    nodes.extend([{"title": t, "type": infer_node_type(t), "tags": [], "content": user_input, "tone": tone, "tone_strength": tone_strength} for t in single_quoted[:5]])
-    
-    # Method 3: Title case phrases (likely concepts)
-    title_case = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b', text)
-    nodes.extend([{"title": t, "type": infer_node_type(t), "tags": [], "content": user_input, "tone": tone, "tone_strength": tone_strength} for t in title_case[:3]])
-    
-    # Remove duplicates while preserving order
-    seen = set()
-    unique_nodes = []
-    for node in nodes:
-        title_lower = node["title"].lower()
-        if title_lower not in seen and len(node["title"]) > 3:
-            seen.add(title_lower)
-            unique_nodes.append(node)
-    
-    # Fallback: if still no nodes, create from user input
-    if not unique_nodes:
-        unique_nodes.append({
-            "title": user_input[:60] if len(user_input) > 60 else user_input,
-            "type": infer_node_type(user_input),
-            "tags": [],
-            "content": user_input,
-            "tone": tone,
-            "tone_strength": tone_strength
-        })
-    
-    # Detect potential links in AI response
-    links = []
-    if action == "link":
-        # Try to find relationship words
-        link_words = re.findall(r'(\w+)\s+(?:connects to|links to|relates to|supports|feeds into)\s+(\w+)', text_lower)
-        for from_word, to_word in link_words[:3]:
-            links.append({
-                "from_title": from_word.title(),
-                "to_title": to_word.title(),
-                "relationship": "supports"
+    for item in quoted[:10]:  # Max 10 per response, but no other limits
+        if len(item) > 2:  # Basic sanity check
+            nodes.append({
+                "title": item,
+                "type": "element",  # Generic - AI defines meaning through context
+                "tags": [],
+                "content": user_input,
+                "tone": "neutral",
+                "tone_strength": 0.5
             })
     
+    # If nothing quoted, let the whole input become something if it's short enough
+    if not nodes and len(user_input) < 100:
+        nodes.append({
+            "title": user_input,
+            "type": "element",
+            "tags": [],
+            "content": user_input,
+            "tone": "neutral",
+            "tone_strength": 0.5
+        })
+    
     return {
-        "action": action,
-        "nodes": unique_nodes[:8],  # Max 8 nodes per response
-        "links": links,
-        "message": text,  # Natural language message from AI
-        "tone": tone,
-        "tone_strength": tone_strength
+        "action": "manifest",  # Everything is just manifestation
+        "nodes": nodes,
+        "links": [],
+        "message": text,
+        "tone": "neutral",
+        "tone_strength": 0.5
     }
 
 @api_router.post("/converse")
