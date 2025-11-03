@@ -54,15 +54,15 @@ export default function ConversationPanel({ messages, onClose, isVisible }) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
         {messages.length === 0 ? (
-          <div className="text-center text-slate-400 mt-12">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
-              <Sparkles size={24} className="text-indigo-400" />
+          <div className="text-center text-slate-400 mt-8">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
+              <Sparkles size={20} className="text-indigo-400" />
             </div>
-            <p className="text-sm font-medium">Your dialogue will flow here</p>
-            <p className="text-xs mt-2 text-slate-400">
-              Speak and watch collaboration unfold
+            <p className="text-xs font-medium">Dialogue flows here</p>
+            <p className="text-[10px] mt-1 text-slate-400">
+              Alongside the canvas
             </p>
           </div>
         ) : (
@@ -71,46 +71,46 @@ export default function ConversationPanel({ messages, onClose, isVisible }) {
               {msg.role === 'user' ? (
                 // User message - clean and simple
                 <div className="flex justify-end">
-                  <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg">
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                  <div className="max-w-[85%] rounded-xl px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md">
+                    <p className="text-xs leading-relaxed whitespace-pre-wrap">
                       {msg.content}
                     </p>
                   </div>
                 </div>
               ) : (
                 // AI response - rich and collaborative
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {/* Action indicator */}
                   {msg.action && (
-                    <div className="flex items-center gap-2 text-xs text-slate-500 ml-2">
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500 ml-1">
                       {getActionIcon(msg.action)}
                       <span className="font-medium">{getActionLabel(msg.action)}</span>
                     </div>
                   )}
                   
                   {/* AI message */}
-                  <div className={`rounded-2xl p-4 border bg-gradient-to-br ${getActionColor(msg.action || 'default')} shadow-sm`}>
-                    <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">
+                  <div className={`rounded-xl p-3 border bg-gradient-to-br ${getActionColor(msg.action || 'default')} shadow-sm`}>
+                    <p className="text-xs leading-relaxed text-slate-700 whitespace-pre-wrap">
                       {msg.content}
                     </p>
                     
                     {/* Nodes created */}
                     {msg.nodes && msg.nodes.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
-                        <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
-                          <Plus size={12} />
-                          <span>Manifested on canvas</span>
+                      <div className="mt-2 pt-2 border-t border-slate-200/70 space-y-1.5">
+                        <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-600">
+                          <Plus size={10} />
+                          <span>On canvas</span>
                         </div>
                         <div className="space-y-1">
                           {msg.nodes.map((node, idx) => (
                             <div
                               key={idx}
-                              className="flex items-center gap-2 text-xs bg-white/80 rounded-lg px-3 py-2 border border-slate-200"
+                              className="flex items-center gap-2 text-[10px] bg-white/80 rounded-lg px-2 py-1.5 border border-slate-200"
                             >
-                              <div className="w-2 h-2 rounded-full bg-blue-400" />
-                              <span className="font-medium text-slate-700">{node.title}</span>
+                              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                              <span className="font-medium text-slate-700 truncate">{node.title}</span>
                               {node.type && (
-                                <span className="ml-auto text-slate-500 text-[10px] uppercase tracking-wide">
+                                <span className="ml-auto text-slate-500 text-[9px] uppercase tracking-wide flex-shrink-0">
                                   {node.type}
                                 </span>
                               )}
@@ -122,19 +122,19 @@ export default function ConversationPanel({ messages, onClose, isVisible }) {
                     
                     {/* Links created */}
                     {msg.links && msg.links.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
-                        <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
-                          <Link2 size={12} />
-                          <span>Connections woven</span>
+                      <div className="mt-2 pt-2 border-t border-slate-200/70 space-y-1.5">
+                        <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-600">
+                          <Link2 size={10} />
+                          <span>Woven</span>
                         </div>
                         <div className="space-y-1">
                           {msg.links.map((link, idx) => (
                             <div
                               key={idx}
-                              className="text-xs bg-white/80 rounded-lg px-3 py-2 border border-slate-200"
+                              className="text-[10px] bg-white/80 rounded-lg px-2 py-1.5 border border-slate-200"
                             >
                               <span className="text-slate-700">{link.from_title}</span>
-                              <span className="text-slate-400 mx-2">→</span>
+                              <span className="text-slate-400 mx-1">→</span>
                               <span className="text-slate-700">{link.to_title}</span>
                             </div>
                           ))}
@@ -150,21 +150,18 @@ export default function ConversationPanel({ messages, onClose, isVisible }) {
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-slate-200">
-        <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
+      <div className="p-2 border-t border-slate-200/50">
+        <div className="flex items-center justify-center gap-2 text-[10px] text-slate-500">
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-400 to-indigo-400" />
+            <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-400 to-indigo-400" />
             <span>You</span>
           </div>
           <span>×</span>
           <div className="flex items-center gap-1">
-            <Sparkles size={12} className="text-indigo-400" />
-            <span>AI Companion</span>
+            <Sparkles size={10} className="text-indigo-400" />
+            <span>AI</span>
           </div>
         </div>
-        <p className="text-center text-[10px] text-slate-400 mt-1">
-          Dialogue flows, structure emerges
-        </p>
       </div>
     </div>
   );
