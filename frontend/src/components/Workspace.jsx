@@ -59,10 +59,19 @@ export default function Workspace({ onLogout }) {
     }
   };
 
+  const loadArtifacts = async () => {
+    try {
+      const response = await axiosInstance.get(`${API}/artifacts/${frequency}`);
+      setArtifacts(response.data);
+    } catch (error) {
+      console.error('Failed to load artifacts', error);
+    }
+  };
+
   const handleStructureCreated = (data, userInput, model) => {
-    // Add new nodes to canvas
-    if (data.nodes && data.nodes.length > 0) {
-      setNodes([...nodes, ...data.nodes]);
+    // Add new artifacts to canvas
+    if (data.artifacts && data.artifacts.length > 0) {
+      setArtifacts([...artifacts, ...data.artifacts]);
     }
     
     // Add to conversation history
@@ -80,7 +89,7 @@ export default function Workspace({ onLogout }) {
           role: 'assistant', 
           content: data.message,
           model: model || 'hermes',
-          nodeCount: data.nodes?.length || 0
+          nodeCount: data.artifacts?.length || 0
         }
       ]);
       
@@ -88,6 +97,41 @@ export default function Workspace({ onLogout }) {
       if (!showConversation && conversationMessages.length === 0) {
         setShowConversation(true);
       }
+    }
+  };
+
+  const handleArtifactDragEnd = async (artifactId, event, info) => {
+    const artifact = artifacts.find(a => a.id === artifactId);
+    if (!artifact) return;
+
+    const newX = artifact.position.x + info.offset.x;
+    const newY = artifact.position.y + info.offset.y;
+
+    // Update local state
+    setArtifacts(artifacts.map(a => 
+      a.id === artifactId 
+        ? { ...a, position: { x: newX, y: newY } }
+        : a
+    ));
+
+    // Persist to backend
+    try {
+      await axiosInstance.patch(`${API}/artifacts/${artifactId}`, {
+        position: { x: newX, y: newY }
+      });
+    } catch (error) {
+      console.error('Failed to save position:', error);
+    }
+  };
+
+  const handleDeleteArtifact = async (artifactId) => {
+    if (!window.confirm('Delete this artifact?')) return;
+
+    try {
+      await axiosInstance.delete(`${API}/artifacts/${artifactId}`);
+      setArtifacts(artifacts.filter(a => a.id !== artifactId));
+    } catch (error) {
+      console.error('Failed to delete artifact:', error);
     }
   };
 
