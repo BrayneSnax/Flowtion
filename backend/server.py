@@ -74,6 +74,7 @@ class Node(BaseModel):
 class ConversationInput(BaseModel):
     text: str
     current_frequency: str = "reflect"
+    model_preference: str = "hermes"  # hermes or openai
 
 class StructureResponse(BaseModel):
     action: str  # create, link, modify, archive
