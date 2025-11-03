@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const frequencyStyles = {
   focus: {
@@ -38,22 +38,74 @@ const frequencyStyles = {
 
 export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
   const [hoveredNode, setHoveredNode] = useState(null);
+  const [isBreathing, setIsBreathing] = useState(false);
+  const [idleTime, setIdleTime] = useState(0);
   const style = frequencyStyles[frequency] || frequencyStyles.reflect;
+
+  // Breathing detection
+  useEffect(() => {
+    let counter = 0;
+    let timer;
+
+    const resetIdle = () => {
+      counter = 0;
+      setIdleTime(0);
+      setIsBreathing(false);
+    };
+
+    const incrementIdle = () => {
+      counter += 1;
+      setIdleTime(counter);
+      
+      // After 15 seconds, start breathing
+      if (counter >= 15) {
+        setIsBreathing(true);
+      }
+    };
+
+    window.addEventListener('mousemove', resetIdle);
+    window.addEventListener('keydown', resetIdle);
+    timer = setInterval(incrementIdle, 1000);
+
+    return () => {
+      window.removeEventListener('mousemove', resetIdle);
+      window.removeEventListener('keydown', resetIdle);
+      clearInterval(timer);
+    };
+  }, []);
 
   if (!nodes || nodes.length === 0) {
     return (
       <div className={`h-full flex items-center justify-center bg-gradient-to-br ${style.bg} transition-all duration-1000`}>
-        <div className="text-center space-y-4 animate-in fade-in duration-700">
-          <div className="text-6xl opacity-40">✨</div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7 }}
+          className="text-center space-y-4"
+        >
+          <motion.div
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ repeat: Infinity, duration: 3 }}
+            className="text-6xl opacity-40"
+          >
+            ✨
+          </motion.div>
           <div className="text-2xl font-light text-slate-600">Empty field</div>
           <div className="text-sm text-slate-500">Speak to create structure</div>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className={`relative h-full bg-gradient-to-br ${style.bg} transition-all duration-1000 overflow-hidden`}>
+    <motion.div
+      className={`relative h-full bg-gradient-to-br ${style.bg} overflow-hidden`}
+      animate={{
+        opacity: isBreathing ? 0.7 : 1,
+        scale: isBreathing ? 0.98 : 1
+      }}
+      transition={{ duration: 2, ease: "easeInOut" }}
+    >
       {/* Grid overlay for focus mode */}
       {style.grid && (
         <div className="absolute inset-0 opacity-20">
@@ -63,6 +115,18 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
           }} />
         </div>
       )}
+
+      {/* Breathing overlay */}
+      <AnimatePresence>
+        {isBreathing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.3 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-white backdrop-blur-sm pointer-events-none"
+          />
+        )}
+      </AnimatePresence>
 
       {/* SVG for connections */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
@@ -79,7 +143,7 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
           if (i === nodes.length - 1) return null;
           const nextNode = nodes[i + 1];
           return (
-            <line
+            <motion.line
               key={`${node.id}-${nextNode.id}`}
               x1={node.position.x + 100}
               y1={node.position.y + 50}
@@ -88,6 +152,9 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
               className={`${style.line} opacity-30`}
               strokeWidth="2"
               strokeDasharray={style.motion === 'fluid' ? '5,5' : '0'}
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 1.5, ease: "easeInOut" }}
             />
           );
         })}
@@ -148,6 +215,6 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
           );
         })}
       </div>
-    </div>
+    </motion.div>
   );
 }
