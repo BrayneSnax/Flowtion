@@ -255,7 +255,7 @@ You speak like a trusted companion, not a task manager. Warm, embodied, invitati
             )
             
             response = await client.chat.completions.create(
-                model="hermes-3-llama-3.1-405b",
+                model="Hermes-4-70B",
                 messages=[
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": data.text}
