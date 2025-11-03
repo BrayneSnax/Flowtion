@@ -206,11 +206,12 @@ def parse_natural_response(text: str, user_input: str, frequency: str) -> Dict[s
 async def converse(data: ConversationInput, user_id: str = Depends(get_current_user)):
     """Natural language → structure generation with fluid, invitational AI"""
     
-    # Choose model
+    # Choose model - prioritize user's keys
     use_hermes = data.model_preference == "hermes" and NOUS_API_KEY
-    use_openai = not use_hermes or (data.model_preference == "openai" and EMERGENT_LLM_KEY)
+    use_openai_direct = data.model_preference == "openai" and OPENAI_API_KEY
+    use_emergent = data.model_preference == "openai" and not OPENAI_API_KEY and EMERGENT_LLM_KEY
     
-    if not NOUS_API_KEY and not EMERGENT_LLM_KEY:
+    if not NOUS_API_KEY and not OPENAI_API_KEY and not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=500, detail="AI service not configured")
     
     try:
@@ -249,7 +250,7 @@ You speak like a trusted companion, not a task manager. Warm, embodied, invitati
 
         # Call AI based on preference
         if use_hermes:
-            # Use Nous Hermes 4 via OpenAI-compatible API
+            # Use Nous Hermes 4 (optimized params from technical report)
             client = AsyncOpenAI(
                 api_key=NOUS_API_KEY,
                 base_url=NOUS_API_BASE
@@ -261,14 +262,31 @@ You speak like a trusted companion, not a task manager. Warm, embodied, invitati
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": data.text}
                 ],
-                temperature=0.8,
+                temperature=0.7,  # Sweet spot for creative but grounded
+                top_p=0.95,  # From technical report
+                max_tokens=300
+            )
+            
+            ai_response = response.choices[0].message.content
+            
+        elif use_openai_direct:
+            # Use user's OpenAI key directly
+            client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+            
+            response = await client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": data.text}
+                ],
+                temperature=0.7,
                 max_tokens=300
             )
             
             ai_response = response.choices[0].message.content
             
         else:
-            # Use OpenAI via Emergent LLM
+            # Use Emergent LLM key as fallback
             chat = LlmChat(
                 api_key=EMERGENT_LLM_KEY,
                 session_id=f"builder_{user_id}",
