@@ -60,6 +60,20 @@ class TokenResponse(BaseModel):
     token: str
     user: Dict[str, Any]
 
+class Artifact(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    conversation_id: str  # Links artifacts to conversations
+    type: str  # text_bubble, lightbulb, diagram, table, image, shape, custom
+    content: Dict[str, Any]  # Flexible content based on type
+    style: Dict[str, Any] = {}  # Colors, gradients, sizes - AI decides
+    position: Dict[str, float] = {"x": 0, "y": 0}
+    size: Dict[str, float] = {"width": 200, "height": 100}
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    merged_from: List[str] = []  # Track merged artifacts
+
 class Node(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
