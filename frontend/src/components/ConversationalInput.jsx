@@ -83,8 +83,10 @@ export default function ConversationalInput({ frequency, onStructureCreated, axi
                   ? 'bg-indigo-100 text-indigo-700'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
+              title="Brainstorming mode - generative and wild"
             >
               Hermes
+              <span className="ml-1 text-[9px] opacity-60">brainstorm</span>
             </button>
             <button
               onClick={() => setModelPreference('openai')}
@@ -93,8 +95,10 @@ export default function ConversationalInput({ frequency, onStructureCreated, axi
                   ? 'bg-emerald-100 text-emerald-700'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
+              title="Writing mode - structured and refined"
             >
-              OpenAI
+              GPT
+              <span className="ml-1 text-[9px] opacity-60">refine</span>
             </button>
           </div>
         </div>
