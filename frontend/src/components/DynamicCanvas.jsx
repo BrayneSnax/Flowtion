@@ -287,23 +287,21 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
 
       {/* Nodes */}
       <div className="relative h-full p-8">
-        {nodes.map((node, index) => {
-          const motionVariants = {
-            minimal: { scale: 1 },
-            fluid: { scale: [1, 1.05, 1], transition: { repeat: Infinity, duration: 3 } },
-            gentle: { y: [0, -5, 0], transition: { repeat: Infinity, duration: 4 } },
-            connecting: { rotate: [0, 2, -2, 0], transition: { repeat: Infinity, duration: 5 } }
-          };
+        {localNodes.map((node, index) => {
+          const nodeStyle = nodeTypeStyles[node.type] || nodeTypeStyles.thought;
 
           return (
             <motion.div
               key={node.id}
+              drag
+              dragMomentum={false}
+              dragElastic={0}
+              onDragEnd={(event, info) => handleDragEnd(node.id, event, info)}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{
                 opacity: 1,
                 scale: 1,
                 ...(() => {
-                  const nodeStyle = nodeTypeStyles[node.type] || nodeTypeStyles.thought;
                   const breathingScale = isBreathing ? [1, 1.02, 1] : 1;
                   
                   // Behavioral motion based on node type
@@ -344,42 +342,60 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
                 left: node.position.x,
                 top: node.position.y,
               }}
-              className="cursor-pointer"
-              onClick={() => onNodeClick?.(node)}
+              className="cursor-move group"
               onMouseEnter={() => setHoveredNode(node.id)}
               onMouseLeave={() => setHoveredNode(null)}
               data-testid={`node-${node.id}`}
             >
-              {(() => {
-                const nodeStyle = nodeTypeStyles[node.type] || nodeTypeStyles.thought;
-                return (
-                  <div className={`${nodeStyle.bg} ${nodeStyle.shape} ${nodeStyle.size} px-6 py-4 shadow-xl border-2 ${nodeStyle.border} transition-all ${
-                    hoveredNode === node.id ? 'shadow-2xl scale-105' : ''
-                  }`}>
-                    <div className="flex items-start gap-2">
-                      <span className="text-xl">{nodeStyle.icon}</span>
-                      <div className="flex-1">
-                        <div className="text-white font-medium mb-1">
-                          {node.title}
-                        </div>
-                        {node.tags && node.tags.length > 0 && (
-                          <div className="flex gap-2 flex-wrap mt-2">
-                            {node.tags.map((tag, i) => (
-                              <span
-                                key={i}
-                                className="text-xs px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-sm text-white"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <div className="text-xs opacity-60 mt-2 text-white/80 capitalize">{node.type}</div>
-                      </div>
+              <div className={`${nodeStyle.bg} ${nodeStyle.shape} ${nodeStyle.size} px-6 py-4 shadow-xl border-2 ${nodeStyle.border} transition-all ${
+                hoveredNode === node.id ? 'shadow-2xl scale-105' : ''
+              }`}>
+                {/* Action buttons - appear on hover */}
+                <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingNode(node);
+                    }}
+                    className="w-7 h-7 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 transition-colors"
+                    title="Edit"
+                  >
+                    <Edit2 size={14} className="text-blue-600" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(node.id);
+                    }}
+                    className="w-7 h-7 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-red-50 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={14} className="text-red-600" />
+                  </button>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <span className="text-xl">{nodeStyle.icon}</span>
+                  <div className="flex-1">
+                    <div className="text-white font-medium mb-1">
+                      {node.title}
                     </div>
+                    {node.tags && node.tags.length > 0 && (
+                      <div className="flex gap-2 flex-wrap mt-2">
+                        {node.tags.map((tag, i) => (
+                          <span
+                            key={i}
+                            className="text-xs px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-sm text-white"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="text-xs opacity-60 mt-2 text-white/80 capitalize">{node.type}</div>
                   </div>
-                );
-              })()}
+                </div>
+              </div>
             </motion.div>
           );
         })}
