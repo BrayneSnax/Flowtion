@@ -320,86 +320,27 @@ No rules. Just respond genuinely. If something wants to take form, mention it. I
             user_message = UserMessage(text=data.text)
             ai_response = await chat.send_message(user_message)
         
-        # Parse natural response into structure
+        # Parse natural response - very loose
         structure = parse_natural_response(ai_response, data.text, data.current_frequency)
         
-        # Get existing nodes to find center point AND check for fuzzy duplicates
+        # Get existing nodes for positioning
         existing_count = len(existing_nodes)
         
-        # Fuzzy duplicate detection with interaction options
-        def normalize_title(title: str) -> str:
-            """Normalize for fuzzy matching"""
-            import unicodedata
-            # Remove articles, normalize case, strip whitespace/punct
-            title = title.lower().strip()
-            title = re.sub(r'^(the|a|an)\s+', '', title)
-            title = re.sub(r'[^\w\s]', '', title)
-            title = unicodedata.normalize('NFKD', title)
-            return ' '.join(title.split())
+        # Simple de-dupe: just check if exact title exists
+        existing_titles = set(n.get("title", "").lower().strip() for n in existing_nodes)
+        unique_new_nodes = [
+            node for node in structure.get("nodes", [])
+            if node.get("title", "").lower().strip() not in existing_titles
+        ]
         
-        def fuzzy_match(title1: str, title2: str, threshold: float = 0.85) -> bool:
-            """Simple character-level similarity"""
-            t1, t2 = normalize_title(title1), normalize_title(title2)
-            if t1 == t2:
-                return True
-            # Quick Levenshtein approximation
-            longer = max(len(t1), len(t2))
-            if longer == 0:
-                return True
-            # Count matching chars
-            matches = sum(c1 == c2 for c1, c2 in zip(t1, t2))
-            similarity = matches / longer
-            return similarity >= threshold
-        
-        # Check each new node against existing
-        duplicate_warnings = []
-        unique_new_nodes = []
-        
-        for node_data in structure.get("nodes", []):
-            new_title = node_data.get("title", "")
-            is_duplicate = False
-            
-            for existing in existing_nodes:
-                existing_title = existing.get("title", "")
-                existing_type = existing.get("type", "thought")
-                new_type = node_data.get("type", "thought")
-                
-                if fuzzy_match(new_title, existing_title):
-                    # Same type = true duplicate
-                    if existing_type == new_type:
-                        duplicate_warnings.append({
-                            "new_title": new_title,
-                            "existing_title": existing_title,
-                            "existing_id": existing.get("id"),
-                            "existing_type": existing_type,
-                            "suggestion": "same_type"
-                        })
-                        is_duplicate = True
-                        break
-                    else:
-                        # Different type = cross-type collision
-                        duplicate_warnings.append({
-                            "new_title": new_title,
-                            "existing_title": existing_title,
-                            "existing_id": existing.get("id"),
-                            "existing_type": existing_type,
-                            "new_type": new_type,
-                            "suggestion": "cross_type"
-                        })
-                        # Don't block, but warn
-            
-            if not is_duplicate:
-                unique_new_nodes.append(node_data)
-        
-        # Choose positioning pattern based on node count and action type
+        # Organic positioning - loose spiral with randomness
         import math
         import random
         created_nodes = []
         node_count = len(unique_new_nodes)
-        action_type = structure.get("action", "create")
         
         if node_count > 0:
-            # Center point adjusts based on existing nodes
+            # Center point
             if existing_count == 0:
                 center_x, center_y = 600, 400
             else:
@@ -407,40 +348,18 @@ No rules. Just respond genuinely. If something wants to take form, mention it. I
                 avg_y = sum(n.get("position", {}).get("y", 400) for n in existing_nodes) / existing_count
                 center_x, center_y = avg_x, avg_y
             
-            # Diverse positioning patterns
+            # Organic scatter around center
             for i, node_data in enumerate(unique_new_nodes):
-                
-                # Pattern 1: Spiral (create, default)
-                if action_type == "create" or random.random() < 0.4:
-                    angle = (2 * math.pi * i) / node_count + random.uniform(-0.2, 0.2)
-                    radius = 180 + (i * 40) + (existing_count * 20) + random.uniform(-30, 30)
-                    x = center_x + (radius * math.cos(angle))
-                    y = center_y + (radius * math.sin(angle))
-                
-                # Pattern 2: Constellation (recall, observe)
-                elif action_type == "recall" or random.random() < 0.3:
-                    angle = random.uniform(0, 2 * math.pi)
-                    radius = random.uniform(150, 300) + (existing_count * 15)
-                    x = center_x + (radius * math.cos(angle))
-                    y = center_y + (radius * math.sin(angle))
-                
-                # Pattern 3: Linear branch (link, connect)
-                elif action_type == "link" or random.random() < 0.2:
-                    branch_angle = (i * math.pi / 6) + random.uniform(-0.3, 0.3)
-                    distance = 200 + (i * 60)
-                    x = center_x + (distance * math.cos(branch_angle))
-                    y = center_y + (distance * math.sin(branch_angle))
-                
-                # Pattern 4: Organic scatter
-                else:
-                    x = center_x + random.uniform(-250, 250)
-                    y = center_y + random.uniform(-250, 250)
+                angle = random.uniform(0, 2 * math.pi)
+                radius = random.uniform(150, 350)
+                x = center_x + (radius * math.cos(angle))
+                y = center_y + (radius * math.sin(angle))
                 
                 node = Node(
                     user_id=user_id,
                     title=node_data.get("title", "Untitled"),
                     content=node_data.get("content", ""),
-                    type=node_data.get("type", "thought"),
+                    type=node_data.get("type", "element"),
                     tags=node_data.get("tags", []),
                     frequency=data.current_frequency,
                     position={"x": round(x), "y": round(y)}
