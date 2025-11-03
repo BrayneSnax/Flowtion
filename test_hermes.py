@@ -34,8 +34,11 @@ async def test_hermes():
             max_tokens=150
         )
         
-        print("\n✅ Success! Hermes 4 response:")
-        print(response.choices[0].message.content)
+        print("\n✅ Success! Full response:")
+        print(f"Response object: {response}")
+        print(f"\nChoice 0: {response.choices[0]}")
+        print(f"\nMessage: {response.choices[0].message}")
+        print(f"\nContent: {response.choices[0].message.content}")
         
     except Exception as e:
         print(f"\n❌ Error: {str(e)}")
