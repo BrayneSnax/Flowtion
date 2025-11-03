@@ -188,6 +188,9 @@ async def login(data: UserLogin):
 
 def parse_artifacts_from_response(text: str, user_id: str, conversation_id: str) -> List[Dict[str, Any]]:
     """Extract artifact specifications from AI response"""
+    if not text:
+        return []
+    
     artifacts = []
     
     # Pattern: ARTIFACT[type:..., style:{...}, content:{...}]
@@ -232,6 +235,9 @@ def parse_artifacts_from_response(text: str, user_id: str, conversation_id: str)
 
 def parse_natural_response(text: str, user_input: str, frequency: str) -> Dict[str, Any]:
     """Parse AI response - extract conversation and artifact specs"""
+    
+    if not text:
+        return {"message": "", "raw_text": ""}
     
     # Clean text of artifact markers for display
     display_text = re.sub(r'ARTIFACT\[[^\]]+\]', '', text).strip()
