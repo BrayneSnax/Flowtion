@@ -49,7 +49,7 @@ export default function Workspace({ onLogout }) {
 
   const loadInsights = async () => {
     try {
-      const response = await axiosInstance.get(`${API}/patterns/insights`);
+      const response = await axiosInstance.get(`${API}/patterns/insights?model=${modelPreference}`);
       setInsights(response.data.insights || []);
     } catch (error) {
       console.error('Failed to load insights', error);
