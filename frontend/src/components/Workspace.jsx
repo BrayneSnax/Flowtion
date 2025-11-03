@@ -178,7 +178,15 @@ export default function Workspace({ onLogout }) {
       <ConversationalInput
         frequency={frequency}
         onStructureCreated={handleStructureCreated}
+        onUserInput={handleUserInput}
         axiosInstance={axiosInstance}
+      />
+
+      {/* Conversation Panel */}
+      <ConversationPanel
+        messages={conversationMessages}
+        onClose={() => setShowConversation(false)}
+        isVisible={showConversation}
       />
 
       {/* Pattern Insights Panel */}
