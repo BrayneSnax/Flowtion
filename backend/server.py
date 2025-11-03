@@ -427,7 +427,7 @@ You're the architect. Clarify. Structure. Refine. Make it coherent."""
                 center_x, center_y = avg_x, avg_y
             
             # Diverse positioning patterns
-            for i, node_data in enumerate(structure.get("nodes", [])):
+            for i, node_data in enumerate(unique_new_nodes):
                 
                 # Pattern 1: Spiral (create, default)
                 if action_type == "create" or random.random() < 0.4:
@@ -466,6 +466,11 @@ You're the architect. Clarify. Structure. Refine. Make it coherent."""
                 )
                 await db.nodes.insert_one(node.model_dump())
                 created_nodes.append(node)
+        
+        # If all nodes were duplicates, inform user
+        duplicate_count = len(structure.get("nodes", [])) - node_count
+        if duplicate_count > 0 and node_count == 0:
+            structure["message"] += f"\n\n(Note: {duplicate_count} similar node{'s' if duplicate_count > 1 else ''} already exist in this field)"
         
         # Log pattern with resonance metrics
         await db.patterns.insert_one({
