@@ -6,9 +6,8 @@ import FrequencySelector from '@/components/FrequencySelector';
 import DynamicCanvas from '@/components/DynamicCanvas';
 import ConversationalInput from '@/components/ConversationalInput';
 import PatternInsights from '@/components/PatternInsights';
-import ConversationPanel from '@/components/ConversationPanel';
 import { Toaster } from '@/components/ui/sonner';
-import { Home, Lightbulb, LogOut, MessageCircle } from 'lucide-react';
+import { Home, Lightbulb, LogOut } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
