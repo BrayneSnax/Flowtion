@@ -43,10 +43,26 @@ export default function ConversationalInput({ frequency, onStructureCreated, axi
         action: response.data.action
       });
       
-      // Show brief toast with AI message
-      if (response.data.message) {
-        toast.success(response.data.message, {
-          duration: 3000
+      // Show AI response and manifestation info
+      const nodeCount = response.data.nodes?.length || 0;
+      const message = response.data.message || '';
+      
+      if (nodeCount > 0) {
+        toast.success(
+          `${message.slice(0, 120)}${message.length > 120 ? '...' : ''}\n\n✨ ${nodeCount} node${nodeCount > 1 ? 's' : ''} manifested`,
+          {
+            duration: 5000,
+            style: {
+              maxWidth: '500px',
+            }
+          }
+        );
+      } else {
+        toast.info(message, {
+          duration: 4000,
+          style: {
+            maxWidth: '500px',
+          }
         });
       }
     } catch (error) {
