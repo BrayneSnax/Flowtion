@@ -595,16 +595,19 @@ You're the architect. Clarify. Structure. Refine. Make it coherent."""
 # ==================== Node Management ====================
 
 @api_router.get("/nodes")
-async def get_nodes(user_id: str = Depends(get_current_user)):
-    nodes = await db.nodes.find({"user_id": user_id}, {"_id": 0}).to_list(1000)
+async def get_nodes(user_id: str = Depends(get_current_user), include_archived: bool = False):
+    query = {"user_id": user_id}
+    if not include_archived:
+        query["archived"] = {"$ne": True}
+    nodes = await db.nodes.find(query, {"_id": 0}).to_list(1000)
     return nodes
 
 @api_router.get("/nodes/{frequency}")
-async def get_nodes_by_frequency(frequency: str, user_id: str = Depends(get_current_user)):
-    nodes = await db.nodes.find(
-        {"user_id": user_id, "frequency": frequency},
-        {"_id": 0}
-    ).to_list(1000)
+async def get_nodes_by_frequency(frequency: str, user_id: str = Depends(get_current_user), include_archived: bool = False):
+    query = {"user_id": user_id, "frequency": frequency}
+    if not include_archived:
+        query["archived"] = {"$ne": True}
+    nodes = await db.nodes.find(query, {"_id": 0}).to_list(1000)
     return nodes
 
 @api_router.patch("/nodes/{node_id}")
