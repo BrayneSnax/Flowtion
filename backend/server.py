@@ -356,91 +356,45 @@ Talk naturally. Create when ideas want form. Not every conversation needs artifa
             user_message = UserMessage(text=data.text)
             ai_response = await chat.send_message(user_message)
         
-        # Parse natural response - very loose
+        # Parse response for artifacts
         structure = parse_natural_response(ai_response, data.text, data.current_frequency)
+        artifacts_specs = parse_artifacts_from_response(structure.get("raw_text", ""), user_id, data.current_frequency)
         
-        # Get existing nodes for positioning
-        existing_count = len(existing_nodes)
-        
-        # Simple de-dupe: just check if exact title exists
-        existing_titles = set(n.get("title", "").lower().strip() for n in existing_nodes)
-        unique_new_nodes = [
-            node for node in structure.get("nodes", [])
-            if node.get("title", "").lower().strip() not in existing_titles
-        ]
-        
-        # Organic positioning - loose spiral with randomness
-        import math
+        # Create artifacts
+        created_artifacts = []
         import random
-        created_nodes = []
-        node_count = len(unique_new_nodes)
         
-        if node_count > 0:
-            # Center point
-            if existing_count == 0:
-                center_x, center_y = 600, 400
-            else:
-                avg_x = sum(n.get("position", {}).get("x", 600) for n in existing_nodes) / existing_count
-                avg_y = sum(n.get("position", {}).get("y", 400) for n in existing_nodes) / existing_count
-                center_x, center_y = avg_x, avg_y
+        for i, artifact_spec in enumerate(artifacts_specs):
+            # Random positioning for now - AI could specify later
+            x = 400 + random.randint(-200, 200) + (i * 150)
+            y = 300 + random.randint(-100, 100)
             
-            # Organic scatter around center
-            for i, node_data in enumerate(unique_new_nodes):
-                angle = random.uniform(0, 2 * math.pi)
-                radius = random.uniform(150, 350)
-                x = center_x + (radius * math.cos(angle))
-                y = center_y + (radius * math.sin(angle))
-                
-                node = Node(
-                    user_id=user_id,
-                    title=node_data.get("title", "Untitled"),
-                    content=node_data.get("content", ""),
-                    type=node_data.get("type", "element"),
-                    tags=node_data.get("tags", []),
-                    frequency=data.current_frequency,
-                    position={"x": round(x), "y": round(y)}
-                )
-                await db.nodes.insert_one(node.model_dump())
-                created_nodes.append(node)
+            artifact = Artifact(
+                user_id=user_id,
+                conversation_id=artifact_spec.get("conversation_id", data.current_frequency),
+                type=artifact_spec.get("type", "text_bubble"),
+                content=artifact_spec.get("content", {}),
+                style=artifact_spec.get("style", {}),
+                position={"x": x, "y": y}
+            )
+            
+            await db.artifacts.insert_one(artifact.model_dump())
+            created_artifacts.append(artifact)
         
-        # Simple response
-        return {
-            "action": structure.get("action"),
-            "nodes": [n.model_dump() for n in created_nodes],
-            "links": structure.get("links", []),
-            "message": structure.get("message", "")
-        }
-        await db.patterns.insert_one({
+        # Log conversation turn
+        await db.conversations.insert_one({
             "user_id": user_id,
-            "frequency": data.current_frequency,
-            "action": structure.get("action"),
-            "text": data.text,
+            "conversation_id": data.current_frequency,
+            "user_message": data.text,
+            "ai_message": structure.get("message"),
             "model": "hermes" if use_hermes else "openai",
-            "tone": structure.get("tone", "neutral"),
-            "tone_strength": structure.get("tone_strength", 0.5),
-            "node_count": len(created_nodes),
-            "node_types": [n.type for n in created_nodes],
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
-        
-        # Log resonance metrics
-        await db.resonance_metrics.insert_one({
-            "user_id": user_id,
-            "session_id": f"session_{datetime.now(timezone.utc).date().isoformat()}",
-            "frequency_used": data.current_frequency,
-            "node_type_distribution": {node_type: sum(1 for n in created_nodes if n.type == node_type) 
-                                      for node_type in ["thought", "pattern", "ritual", "project", "question"]},
-            "amplitude": len(data.text),  # Input length as proxy for amplitude
-            "coherence_signal": structure.get("tone_strength", 0.5),  # Tone strength as coherence proxy
-            "model_used": "hermes" if use_hermes else "openai",
+            "artifacts_created": [a.id for a in created_artifacts],
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
         return {
-            "action": structure.get("action"),
-            "nodes": [n.model_dump() for n in created_nodes],
-            "links": structure.get("links", []),
-            "message": structure.get("message", "Added to the field")
+            "message": structure.get("message"),
+            "artifacts": [a.model_dump() for a in created_artifacts]
         }
     except Exception as e:
         logging.error(f"Converse error: {str(e)}")
