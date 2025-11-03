@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Send } from 'lucide-react';
+import { Send, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -9,6 +9,7 @@ export default function ConversationalInput({ frequency, onStructureCreated, axi
   const [input, setInput] = useState('');
   const [processing, setProcessing] = useState(false);
   const [suggestion, setSuggestion] = useState('');
+  const [modelPreference, setModelPreference] = useState('hermes'); // hermes or openai
 
   useEffect(() => {
     // Context-aware placeholder suggestions
