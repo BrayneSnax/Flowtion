@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import FrequencySelector from '@/components/FrequencySelector';
 import DynamicCanvas from '@/components/DynamicCanvas';
 import ConversationalInput from '@/components/ConversationalInput';
+import ConversationStream from '@/components/ConversationStream';
 import PatternInsights from '@/components/PatternInsights';
 import { Toaster } from '@/components/ui/sonner';
 import { Home, Lightbulb, LogOut, Archive } from 'lucide-react';
