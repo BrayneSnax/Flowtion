@@ -2,53 +2,16 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Edit2, Trash2 } from 'lucide-react';
 
-// Node type styles - each type gets unique visual treatment AND motion
-const nodeTypeStyles = {
-  thought: {
+// Simple node style - AI decides meaning through context, not preset types
+const getNodeStyle = (node) => {
+  // Default gentle style
+  return {
     shape: 'rounded-2xl',
-    bg: 'bg-blue-500',
-    border: 'border-blue-600',
-    icon: '💭',
+    bg: 'bg-gradient-to-br from-slate-500 to-slate-600',
+    border: 'border-slate-700',
     size: 'min-w-[200px]',
-    tempo: 0.5, // neutral
-    behavior: 'float' // gentle drift
-  },
-  pattern: {
-    shape: 'rounded-xl',
-    bg: 'bg-gradient-to-br from-amber-500 to-orange-500',
-    border: 'border-amber-600',
-    icon: '🔄',
-    size: 'min-w-[220px]',
-    tempo: 0.3, // slow, cyclical
-    behavior: 'orbit' // centripetal
-  },
-  ritual: {
-    shape: 'rounded-3xl',
-    bg: 'bg-gradient-to-br from-purple-500 to-pink-500',
-    border: 'border-purple-600',
-    icon: '🕯️',
-    size: 'min-w-[240px]',
-    tempo: 0.4, // meditative
-    behavior: 'pulse' // breathing
-  },
-  project: {
-    shape: 'rounded-lg',
-    bg: 'bg-gradient-to-br from-green-500 to-emerald-500',
-    border: 'border-green-600',
-    icon: '🎯',
-    size: 'min-w-[260px]',
-    tempo: 0.7, // fast, directive
-    behavior: 'expand' // outward pull
-  },
-  question: {
-    shape: 'rounded-2xl',
-    bg: 'bg-gradient-to-br from-indigo-500 to-violet-500',
-    border: 'border-indigo-600',
-    icon: '❓',
-    size: 'min-w-[210px]',
-    tempo: 0.6, // inquisitive
-    behavior: 'seek' // subtle movement toward edges
-  }
+    behavior: 'float'
+  };
 };
 
 const frequencyStyles = {
