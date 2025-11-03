@@ -37,32 +37,14 @@ export default function ConversationalInput({ frequency, onStructureCreated, axi
         model_preference: modelPreference
       });
 
-      // Pass full response data to parent
-      onStructureCreated?.({
-        ...response.data,
-        action: response.data.action
-      });
+      // Pass full response data to parent including user input and model
+      onStructureCreated?.(response.data, userInput, modelPreference);
       
-      // Show AI response and manifestation info
+      // Show brief confirmation toast
       const nodeCount = response.data.nodes?.length || 0;
-      const message = response.data.message || '';
-      
       if (nodeCount > 0) {
-        toast.success(
-          `${message.slice(0, 120)}${message.length > 120 ? '...' : ''}\n\n✨ ${nodeCount} node${nodeCount > 1 ? 's' : ''} manifested`,
-          {
-            duration: 5000,
-            style: {
-              maxWidth: '500px',
-            }
-          }
-        );
-      } else {
-        toast.info(message, {
-          duration: 4000,
-          style: {
-            maxWidth: '500px',
-          }
+        toast.success(`${nodeCount} node${nodeCount > 1 ? 's' : ''} added`, {
+          duration: 2000
         });
       }
     } catch (error) {
