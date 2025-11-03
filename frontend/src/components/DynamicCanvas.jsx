@@ -1,6 +1,45 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Node type styles - each type gets unique visual treatment
+const nodeTypeStyles = {
+  thought: {
+    shape: 'rounded-2xl',
+    bg: 'bg-blue-500',
+    border: 'border-blue-600',
+    icon: '💭',
+    size: 'min-w-[200px]'
+  },
+  pattern: {
+    shape: 'rounded-xl',
+    bg: 'bg-gradient-to-br from-amber-500 to-orange-500',
+    border: 'border-amber-600',
+    icon: '🔄',
+    size: 'min-w-[220px]'
+  },
+  ritual: {
+    shape: 'rounded-3xl',
+    bg: 'bg-gradient-to-br from-purple-500 to-pink-500',
+    border: 'border-purple-600',
+    icon: '🕯️',
+    size: 'min-w-[240px]'
+  },
+  project: {
+    shape: 'rounded-lg',
+    bg: 'bg-gradient-to-br from-green-500 to-emerald-500',
+    border: 'border-green-600',
+    icon: '🎯',
+    size: 'min-w-[260px]'
+  },
+  question: {
+    shape: 'rounded-2xl',
+    bg: 'bg-gradient-to-br from-indigo-500 to-violet-500',
+    border: 'border-indigo-600',
+    icon: '❓',
+    size: 'min-w-[210px]'
+  }
+};
+
 const frequencyStyles = {
   focus: {
     bg: 'from-slate-50 to-slate-100',
