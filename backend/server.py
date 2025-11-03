@@ -160,67 +160,87 @@ async def converse(data: ConversationInput, user_id: str = Depends(get_current_u
         raise HTTPException(status_code=500, detail="AI service not configured")
     
     try:
+        # Get existing nodes for context
+        existing_nodes = await db.nodes.find(
+            {"user_id": user_id, "frequency": data.current_frequency},
+            {"_id": 0}
+        ).to_list(100)
+        
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"builder_{user_id}",
-            system_message="""You are a cognitive steward that interprets natural language into structural actions.
-            
+            system_message="""You are a gentle cognitive steward that interprets natural language into structure.
+
+Tone: Invitational, warm, never commanding. Use "want to" not "should", "could" not "must".
+
 When the user speaks, determine:
-1. Action type: create (new node), link (connect existing), modify (update), archive (pause)
-2. Node details: title, type (thought/project/ritual/pattern), tags
-3. Links: which nodes should connect
-4. Response: brief, invitational confirmation
+1. Action: create (new nodes), link (connect), modify (update), archive (pause), recall (remember)
+2. Nodes: title, type (thought/project/ritual/pattern), tags, content
+3. Response: Brief, human, invitational
 
 Return JSON:
 {
-  "action": "create|link|modify|archive",
-  "nodes": [{"title": "...", "type": "...", "tags": [...]}],
-  "links": [{"from": "title1", "to": "title2"}],
-  "message": "brief confirmation"
+  "action": "create|link|modify|archive|recall",
+  "nodes": [{"title": "...", "type": "thought", "tags": [...], "content": "..."}],
+  "links": [{"from_title": "...", "to_title": "..."}],
+  "message": "invitational confirmation"
 }
 
 Examples:
-- "start mapping ritual systems" → create node titled "Ritual Mapping", type: project, tags: [ritual, systems]
-- "link that with dopamine thread" → link nodes, message: "Connected"
-- "pause this branch" → archive node
+- "start sketching morning rituals" → create nodes: "Morning Field" (project), "Intention" (thought), "Uplift" (thought), message: "Want to start with these anchors?"
+- "merge reflection and rhythm" → link nodes, message: "These feel connected - shall we weave them?"
+- "what patterns do you see" → action: "recall", message with pattern insight
+- User seems frustrated → soften tone, message: "I sense some friction - want to pause or shift direction?"
+
+Always invitational. Always warm. Never mechanical.
 """
         ).with_model("openai", "gpt-4o")
         
-        prompt = f"Frequency: {data.current_frequency}\nUser: {data.text}\n\nInterpret and respond with JSON."
-        user_message = UserMessage(text=prompt)
+        context = f"Frequency: {data.current_frequency}\nExisting nodes: {len(existing_nodes)}\nUser: {data.text}"
+        user_message = UserMessage(text=context)
         response = await chat.send_message(user_message)
         
         # Parse AI response
         try:
             structure = json.loads(response)
         except:
-            # Fallback if AI doesn't return JSON
+            # Fallback
             structure = {
                 "action": "create",
-                "nodes": [{"title": data.text[:50], "type": "thought", "tags": []}],
+                "nodes": [{"title": data.text[:50], "type": "thought", "tags": [], "content": data.text}],
                 "links": [],
-                "message": "Captured"
+                "message": "Captured that thought"
             }
         
-        # Execute structure changes
+        # Smart positioning (spiral pattern, not stacked)
+        import math
         created_nodes = []
-        for node_data in structure.get("nodes", []):
+        base_angle = (2 * math.pi) / max(len(structure.get("nodes", [])), 1)
+        
+        for i, node_data in enumerate(structure.get("nodes", [])):
+            angle = base_angle * i
+            radius = 200 + (i * 50)
+            x = 500 + (radius * math.cos(angle))
+            y = 300 + (radius * math.sin(angle))
+            
             node = Node(
                 user_id=user_id,
                 title=node_data.get("title", "Untitled"),
+                content=node_data.get("content", ""),
                 type=node_data.get("type", "thought"),
                 tags=node_data.get("tags", []),
                 frequency=data.current_frequency,
-                position={"x": len(created_nodes) * 200, "y": 100}
+                position={"x": x, "y": y}
             )
             await db.nodes.insert_one(node.model_dump())
             created_nodes.append(node)
         
-        # Log pattern for rhythm tracking
+        # Log pattern
         await db.patterns.insert_one({
             "user_id": user_id,
             "frequency": data.current_frequency,
             "action": structure.get("action"),
+            "text": data.text,
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
@@ -228,11 +248,11 @@ Examples:
             "action": structure.get("action"),
             "nodes": [n.model_dump() for n in created_nodes],
             "links": structure.get("links", []),
-            "message": structure.get("message", "Done")
+            "message": structure.get("message", "Added to the field")
         }
     except Exception as e:
         logging.error(f"Converse error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Conversation failed")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ==================== Node Management ====================
 
