@@ -30,6 +30,7 @@ JWT_EXPIRATION_HOURS = 24 * 7
 
 EMERGENT_LLM_KEY = os.getenv('EMERGENT_LLM_KEY')
 NOUS_API_KEY = os.getenv('NOUS_API_KEY')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 NOUS_API_BASE = "https://inference-api.nousresearch.com/v1"
 
 app = FastAPI()
