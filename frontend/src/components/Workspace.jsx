@@ -54,6 +54,9 @@ export default function Workspace({ onLogout }) {
       setArtifacts(response.data);
     } catch (error) {
       console.error('Failed to load artifacts', error);
+      setArtifacts([]); // Set empty on error
+    } finally {
+      setLoading(false); // Always stop loading
     }
   };
 
