@@ -26,12 +26,13 @@ export default function Workspace({ onLogout }) {
   const navigate = useNavigate();
   const [view, setView] = useState('canvas'); // canvas or frequency
   const [frequency, setFrequency] = useState('reflect');
-  const [nodes, setNodes] = useState([]);
+  const [artifacts, setArtifacts] = useState([]);
   const [insights, setInsights] = useState([]);
   const [showInsights, setShowInsights] = useState(false);
   const [loading, setLoading] = useState(true);
   const [conversationMessages, setConversationMessages] = useState([]);
   const [showConversation, setShowConversation] = useState(false);
+  const [hoveredArtifact, setHoveredArtifact] = useState(null);
 
   useEffect(() => {
     loadNodes();
