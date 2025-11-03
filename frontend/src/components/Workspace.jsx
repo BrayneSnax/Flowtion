@@ -228,12 +228,30 @@ export default function Workspace({ onLogout }) {
       </div>
 
       {/* Unified Canvas - scrollable when content grows */}
-      <div className="flex-1 relative overflow-auto">
-        <DynamicCanvas
-          frequency={frequency}
-          nodes={nodes}
-          onNodeClick={(node) => console.log('Node clicked:', node)}
-        />
+      <div className="flex-1 relative overflow-auto bg-gradient-to-br from-slate-50 to-slate-100">
+        {artifacts.length === 0 ? (
+          <div className="h-full flex items-center justify-center">
+            <div className="text-center space-y-4">
+              <div className="text-6xl opacity-40">✨</div>
+              <div className="text-2xl font-light text-slate-600">Empty canvas</div>
+              <div className="text-sm text-slate-500">Start a conversation</div>
+            </div>
+          </div>
+        ) : (
+          <div className="relative h-full p-8 min-h-screen">
+            {artifacts.map((artifact) => (
+              <ArtifactRenderer
+                key={artifact.id}
+                artifact={artifact}
+                onEdit={(art) => console.log('Edit artifact:', art)}
+                onDelete={handleDeleteArtifact}
+                onDragEnd={(event, info) => handleArtifactDragEnd(artifact.id, event, info)}
+                isHovered={hoveredArtifact === artifact.id}
+                onHover={setHoveredArtifact}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Conversation Stream - persistent dialogue */}
