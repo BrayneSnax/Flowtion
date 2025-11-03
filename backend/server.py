@@ -400,14 +400,21 @@ You're the architect. Clarify. Structure. Refine. Make it coherent."""
         # Parse natural response into structure
         structure = parse_natural_response(ai_response, data.text, data.current_frequency)
         
-        # Get existing nodes to find center point
+        # Get existing nodes to find center point AND prevent duplicates
         existing_count = len(existing_nodes)
+        existing_titles = set(n.get("title", "").lower() for n in existing_nodes)
+        
+        # Filter out duplicate nodes (same title already exists in this frequency)
+        unique_new_nodes = [
+            node for node in structure.get("nodes", [])
+            if node.get("title", "").lower() not in existing_titles
+        ]
         
         # Choose positioning pattern based on node count and action type
         import math
         import random
         created_nodes = []
-        node_count = len(structure.get("nodes", []))
+        node_count = len(unique_new_nodes)
         action_type = structure.get("action", "create")
         
         if node_count > 0:
