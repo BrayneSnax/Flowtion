@@ -365,31 +365,50 @@ You're the architect. Clarify. Structure. Refine. Make it coherent."""
         # Get existing nodes to find center point
         existing_count = len(existing_nodes)
         
-        # Smart positioning (spiral pattern centered around existing field)
+        # Choose positioning pattern based on node count and action type
         import math
+        import random
         created_nodes = []
         node_count = len(structure.get("nodes", []))
+        action_type = structure.get("action", "create")
         
         if node_count > 0:
-            base_angle = (2 * math.pi) / node_count
-            
             # Center point adjusts based on existing nodes
             if existing_count == 0:
-                # First nodes - use viewport center
                 center_x, center_y = 600, 400
             else:
-                # Calculate center from existing nodes
                 avg_x = sum(n.get("position", {}).get("x", 600) for n in existing_nodes) / existing_count
                 avg_y = sum(n.get("position", {}).get("y", 400) for n in existing_nodes) / existing_count
-                # New nodes orbit around existing cluster
                 center_x, center_y = avg_x, avg_y
             
+            # Diverse positioning patterns
             for i, node_data in enumerate(structure.get("nodes", [])):
-                angle = base_angle * i
-                # Vary radius for visual interest
-                radius = 180 + (i * 40) + (existing_count * 20)
-                x = center_x + (radius * math.cos(angle))
-                y = center_y + (radius * math.sin(angle))
+                
+                # Pattern 1: Spiral (create, default)
+                if action_type == "create" or random.random() < 0.4:
+                    angle = (2 * math.pi * i) / node_count + random.uniform(-0.2, 0.2)
+                    radius = 180 + (i * 40) + (existing_count * 20) + random.uniform(-30, 30)
+                    x = center_x + (radius * math.cos(angle))
+                    y = center_y + (radius * math.sin(angle))
+                
+                # Pattern 2: Constellation (recall, observe)
+                elif action_type == "recall" or random.random() < 0.3:
+                    angle = random.uniform(0, 2 * math.pi)
+                    radius = random.uniform(150, 300) + (existing_count * 15)
+                    x = center_x + (radius * math.cos(angle))
+                    y = center_y + (radius * math.sin(angle))
+                
+                # Pattern 3: Linear branch (link, connect)
+                elif action_type == "link" or random.random() < 0.2:
+                    branch_angle = (i * math.pi / 6) + random.uniform(-0.3, 0.3)
+                    distance = 200 + (i * 60)
+                    x = center_x + (distance * math.cos(branch_angle))
+                    y = center_y + (distance * math.sin(branch_angle))
+                
+                # Pattern 4: Organic scatter
+                else:
+                    x = center_x + random.uniform(-250, 250)
+                    y = center_y + random.uniform(-250, 250)
                 
                 node = Node(
                     user_id=user_id,
@@ -398,7 +417,7 @@ You're the architect. Clarify. Structure. Refine. Make it coherent."""
                     type=node_data.get("type", "thought"),
                     tags=node_data.get("tags", []),
                     frequency=data.current_frequency,
-                    position={"x": x, "y": y}
+                    position={"x": round(x), "y": round(y)}
                 )
                 await db.nodes.insert_one(node.model_dump())
                 created_nodes.append(node)
