@@ -367,23 +367,12 @@ No rules. Just respond genuinely. If something wants to take form, mention it. I
                 await db.nodes.insert_one(node.model_dump())
                 created_nodes.append(node)
         
-        # Build response message with duplicate handling
-        response_message = structure.get("message", "Added to the field")
-        
-        if duplicate_warnings:
-            response_message += "\n\n"
-            for dup in duplicate_warnings:
-                if dup.get("suggestion") == "same_type":
-                    response_message += f"\n• '{dup['new_title']}' already exists as {dup['existing_type']}. "
-                elif dup.get("suggestion") == "cross_type":
-                    response_message += f"\n• '{dup['new_title']}' exists as {dup['existing_type']}, creating as {dup['new_type']}. "
-        
+        # Simple response
         return {
             "action": structure.get("action"),
             "nodes": [n.model_dump() for n in created_nodes],
             "links": structure.get("links", []),
-            "message": response_message,
-            "duplicate_warnings": duplicate_warnings if duplicate_warnings else None
+            "message": structure.get("message", "")
         }
         await db.patterns.insert_one({
             "user_id": user_id,
