@@ -413,15 +413,73 @@ You're the architect. Clarify. Structure. Refine. Make it coherent."""
         # Parse natural response into structure
         structure = parse_natural_response(ai_response, data.text, data.current_frequency)
         
-        # Get existing nodes to find center point AND prevent duplicates
+        # Get existing nodes to find center point AND check for fuzzy duplicates
         existing_count = len(existing_nodes)
-        existing_titles = set(n.get("title", "").lower() for n in existing_nodes)
         
-        # Filter out duplicate nodes (same title already exists in this frequency)
-        unique_new_nodes = [
-            node for node in structure.get("nodes", [])
-            if node.get("title", "").lower() not in existing_titles
-        ]
+        # Fuzzy duplicate detection with interaction options
+        def normalize_title(title: str) -> str:
+            """Normalize for fuzzy matching"""
+            import unicodedata
+            # Remove articles, normalize case, strip whitespace/punct
+            title = title.lower().strip()
+            title = re.sub(r'^(the|a|an)\s+', '', title)
+            title = re.sub(r'[^\w\s]', '', title)
+            title = unicodedata.normalize('NFKD', title)
+            return ' '.join(title.split())
+        
+        def fuzzy_match(title1: str, title2: str, threshold: float = 0.85) -> bool:
+            """Simple character-level similarity"""
+            t1, t2 = normalize_title(title1), normalize_title(title2)
+            if t1 == t2:
+                return True
+            # Quick Levenshtein approximation
+            longer = max(len(t1), len(t2))
+            if longer == 0:
+                return True
+            # Count matching chars
+            matches = sum(c1 == c2 for c1, c2 in zip(t1, t2))
+            similarity = matches / longer
+            return similarity >= threshold
+        
+        # Check each new node against existing
+        duplicate_warnings = []
+        unique_new_nodes = []
+        
+        for node_data in structure.get("nodes", []):
+            new_title = node_data.get("title", "")
+            is_duplicate = False
+            
+            for existing in existing_nodes:
+                existing_title = existing.get("title", "")
+                existing_type = existing.get("type", "thought")
+                new_type = node_data.get("type", "thought")
+                
+                if fuzzy_match(new_title, existing_title):
+                    # Same type = true duplicate
+                    if existing_type == new_type:
+                        duplicate_warnings.append({
+                            "new_title": new_title,
+                            "existing_title": existing_title,
+                            "existing_id": existing.get("id"),
+                            "existing_type": existing_type,
+                            "suggestion": "same_type"
+                        })
+                        is_duplicate = True
+                        break
+                    else:
+                        # Different type = cross-type collision
+                        duplicate_warnings.append({
+                            "new_title": new_title,
+                            "existing_title": existing_title,
+                            "existing_id": existing.get("id"),
+                            "existing_type": existing_type,
+                            "new_type": new_type,
+                            "suggestion": "cross_type"
+                        })
+                        # Don't block, but warn
+            
+            if not is_duplicate:
+                unique_new_nodes.append(node_data)
         
         # Choose positioning pattern based on node count and action type
         import math
