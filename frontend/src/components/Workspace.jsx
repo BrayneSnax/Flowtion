@@ -62,11 +62,6 @@ export default function Workspace({ onLogout }) {
     }
   };
 
-  const handleUserInput = (userText) => {
-    // User input captured but no separate conversation panel
-    // Everything manifests on canvas
-  };
-
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
