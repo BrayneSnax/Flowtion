@@ -410,6 +410,38 @@ async def get_nodes(user_id: str = Depends(get_current_user), include_archived: 
     nodes = await db.nodes.find(query, {"_id": 0}).to_list(1000)
     return nodes
 
+@api_router.get("/artifacts/{conversation_id}")
+async def get_artifacts(conversation_id: str, user_id: str = Depends(get_current_user)):
+    """Get all artifacts for a conversation"""
+    artifacts = await db.artifacts.find(
+        {"user_id": user_id, "conversation_id": conversation_id, "archived": {"$ne": True}},
+        {"_id": 0}
+    ).to_list(1000)
+    return artifacts
+
+@api_router.patch("/artifacts/{artifact_id}")
+async def update_artifact(artifact_id: str, updates: dict, user_id: str = Depends(get_current_user)):
+    """Update artifact (position, style, content)"""
+    artifact = await db.artifacts.find_one({"id": artifact_id, "user_id": user_id})
+    if not artifact:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    
+    updates['updated_at'] = datetime.now(timezone.utc).isoformat()
+    await db.artifacts.update_one({"id": artifact_id}, {"$set": updates})
+    
+    updated = await db.artifacts.find_one({"id": artifact_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/artifacts/{artifact_id}")
+async def delete_artifact(artifact_id: str, user_id: str = Depends(get_current_user)):
+    """Delete artifact"""
+    result = await db.artifacts.delete_one({"id": artifact_id, "user_id": user_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    
+    return {"deleted": True, "artifact_id": artifact_id}
+
 @api_router.get("/nodes/{frequency}")
 async def get_nodes_by_frequency(frequency: str, user_id: str = Depends(get_current_user), include_archived: bool = False):
     query = {"user_id": user_id, "frequency": frequency}
