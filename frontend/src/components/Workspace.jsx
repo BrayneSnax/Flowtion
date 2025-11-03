@@ -138,8 +138,8 @@ export default function Workspace({ onLogout }) {
     try {
       const response = await axiosInstance.post(`${API}/nodes/archive-all?frequency=${frequency}`);
       toast.success(response.data.message);
-      setNodes([]); // Clear from UI
-      loadNodes(); // Refresh
+      setArtifacts([]); // Clear from UI
+      loadArtifacts(); // Refresh
     } catch (error) {
       toast.error('Could not archive nodes');
     }
