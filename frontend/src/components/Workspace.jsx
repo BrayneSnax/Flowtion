@@ -136,8 +136,8 @@ export default function Workspace({ onLogout }) {
         </div>
       </div>
 
-      {/* Dynamic Canvas */}
-      <div className="flex-1 relative">
+      {/* Unified Canvas - scrollable when content grows */}
+      <div className="flex-1 relative overflow-auto">
         <DynamicCanvas
           frequency={frequency}
           nodes={nodes}
@@ -145,7 +145,7 @@ export default function Workspace({ onLogout }) {
         />
       </div>
 
-      {/* Conversational Input */}
+      {/* Input at bottom - model selector directly above */}
       <ConversationalInput
         frequency={frequency}
         onStructureCreated={handleStructureCreated}
@@ -153,14 +153,7 @@ export default function Workspace({ onLogout }) {
         axiosInstance={axiosInstance}
       />
 
-      {/* Conversation Panel */}
-      <ConversationPanel
-        messages={conversationMessages}
-        onClose={() => setShowConversation(false)}
-        isVisible={showConversation}
-      />
-
-      {/* Pattern Insights Panel */}
+      {/* Pattern Insights - optional overlay */}
       {showInsights && (
         <PatternInsights
           insights={insights}
