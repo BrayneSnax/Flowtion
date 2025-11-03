@@ -162,16 +162,38 @@ async def login(data: UserLogin):
 def parse_natural_response(text: str, user_input: str, frequency: str) -> Dict[str, Any]:
     """Parse natural language AI response into structure using soft heuristics"""
     text_lower = text.lower()
+    user_lower = user_input.lower()
+    
+    # Detect emotional/energy tone from user input
+    tone = "neutral"
+    tone_strength = 0.5
+    
+    # Detect struggle/friction
+    if any(word in user_lower for word in ["stuck", "blocked", "frustrated", "difficult", "struggling"]):
+        tone = "friction"
+        tone_strength = 0.7
+    # Detect flow/ease
+    elif any(word in user_lower for word in ["flowing", "easy", "clear", "smooth", "aligned"]):
+        tone = "flow"
+        tone_strength = 0.8
+    # Detect seeking/questioning
+    elif any(word in user_lower for word in ["wondering", "curious", "exploring", "seeking", "what if"]):
+        tone = "inquiry"
+        tone_strength = 0.6
+    # Detect momentum/energy
+    elif any(word in user_lower for word in ["excited", "ready", "momentum", "building", "emerging"]):
+        tone = "emergence"
+        tone_strength = 0.9
     
     # Detect action intent (soft signals, not commands)
     action = "create"  # default
-    if any(word in text_lower for word in ["connect", "link", "weav", "merge", "join"]):
+    if any(word in text_lower for word in ["connect", "link", "weav", "merge", "join", "between", "relates"]):
         action = "link"
     elif any(word in text_lower for word in ["remember", "recall", "pattern", "notice", "observe"]):
         action = "recall"
     elif any(word in text_lower for word in ["pause", "rest", "archive", "set aside"]):
         action = "archive"
-    elif any(word in text_lower for word in ["update", "modify", "change", "shift"]):
+    elif any(word in text_lower for word in ["update", "modify", "change", "shift", "evolve"]):
         action = "modify"
     
     # Determine node type based on keywords and frequency
@@ -202,15 +224,15 @@ def parse_natural_response(text: str, user_input: str, frequency: str) -> Dict[s
     
     # Method 1: Double quotes
     double_quoted = re.findall(r'"([^"]+)"', text)
-    nodes.extend([{"title": t, "type": infer_node_type(t), "tags": [], "content": user_input} for t in double_quoted[:5]])
+    nodes.extend([{"title": t, "type": infer_node_type(t), "tags": [], "content": user_input, "tone": tone, "tone_strength": tone_strength} for t in double_quoted[:5]])
     
     # Method 2: Single quotes
     single_quoted = re.findall(r"'([^']+)'", text)
-    nodes.extend([{"title": t, "type": infer_node_type(t), "tags": [], "content": user_input} for t in single_quoted[:5]])
+    nodes.extend([{"title": t, "type": infer_node_type(t), "tags": [], "content": user_input, "tone": tone, "tone_strength": tone_strength} for t in single_quoted[:5]])
     
     # Method 3: Title case phrases (likely concepts)
     title_case = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b', text)
-    nodes.extend([{"title": t, "type": infer_node_type(t), "tags": [], "content": user_input} for t in title_case[:3]])
+    nodes.extend([{"title": t, "type": infer_node_type(t), "tags": [], "content": user_input, "tone": tone, "tone_strength": tone_strength} for t in title_case[:3]])
     
     # Remove duplicates while preserving order
     seen = set()
@@ -227,14 +249,30 @@ def parse_natural_response(text: str, user_input: str, frequency: str) -> Dict[s
             "title": user_input[:60] if len(user_input) > 60 else user_input,
             "type": infer_node_type(user_input),
             "tags": [],
-            "content": user_input
+            "content": user_input,
+            "tone": tone,
+            "tone_strength": tone_strength
         })
+    
+    # Detect potential links in AI response
+    links = []
+    if action == "link":
+        # Try to find relationship words
+        link_words = re.findall(r'(\w+)\s+(?:connects to|links to|relates to|supports|feeds into)\s+(\w+)', text_lower)
+        for from_word, to_word in link_words[:3]:
+            links.append({
+                "from_title": from_word.title(),
+                "to_title": to_word.title(),
+                "relationship": "supports"
+            })
     
     return {
         "action": action,
         "nodes": unique_nodes[:8],  # Max 8 nodes per response
-        "links": [],
-        "message": text  # Natural language message from AI
+        "links": links,
+        "message": text,  # Natural language message from AI
+        "tone": tone,
+        "tone_strength": tone_strength
     }
 
 @api_router.post("/converse")
