@@ -158,10 +158,58 @@ async def login(data: UserLogin):
 
 # ==================== Conversational Builder ====================
 
+def parse_natural_response(text: str, user_input: str, frequency: str) -> Dict[str, Any]:
+    """Parse natural language AI response into structure using soft heuristics"""
+    text_lower = text.lower()
+    
+    # Detect action intent (soft signals, not commands)
+    action = "create"  # default
+    if any(word in text_lower for word in ["connect", "link", "weav", "merge", "join"]):
+        action = "link"
+    elif any(word in text_lower for word in ["remember", "recall", "pattern", "notice", "observe"]):
+        action = "recall"
+    elif any(word in text_lower for word in ["pause", "rest", "archive", "set aside"]):
+        action = "archive"
+    elif any(word in text_lower for word in ["update", "modify", "change", "shift"]):
+        action = "modify"
+    
+    # Extract potential node titles (quoted phrases or emphasized concepts)
+    quoted = re.findall(r'"([^"]+)"', text)
+    nodes = []
+    
+    if quoted:
+        for title in quoted[:3]:  # max 3 nodes
+            nodes.append({
+                "title": title,
+                "type": "thought",
+                "tags": [],
+                "content": user_input
+            })
+    elif action == "create" and not nodes:
+        # Fallback: create from user input
+        nodes.append({
+            "title": user_input[:60] if len(user_input) > 60 else user_input,
+            "type": "thought",
+            "tags": [],
+            "content": user_input
+        })
+    
+    return {
+        "action": action,
+        "nodes": nodes,
+        "links": [],
+        "message": text  # Natural language message from AI
+    }
+
 @api_router.post("/converse")
 async def converse(data: ConversationInput, user_id: str = Depends(get_current_user)):
-    """Natural language → structure generation"""
-    if not EMERGENT_LLM_KEY:
+    """Natural language → structure generation with fluid, invitational AI"""
+    
+    # Choose model
+    use_hermes = data.model_preference == "hermes" and NOUS_API_KEY
+    use_openai = not use_hermes or (data.model_preference == "openai" and EMERGENT_LLM_KEY)
+    
+    if not NOUS_API_KEY and not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=500, detail="AI service not configured")
     
     try:
@@ -171,53 +219,68 @@ async def converse(data: ConversationInput, user_id: str = Depends(get_current_u
             {"_id": 0}
         ).to_list(100)
         
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"builder_{user_id}",
-            system_message="""You are a gentle cognitive steward that interprets natural language into structure.
-
-Tone: Invitational, warm, never commanding. Use "want to" not "should", "could" not "must".
-
-When the user speaks, determine:
-1. Action: create (new nodes), link (connect), modify (update), archive (pause), recall (remember)
-2. Nodes: title, type (thought/project/ritual/pattern), tags, content
-3. Response: Brief, human, invitational
-
-Return JSON:
-{
-  "action": "create|link|modify|archive|recall",
-  "nodes": [{"title": "...", "type": "thought", "tags": [...], "content": "..."}],
-  "links": [{"from_title": "...", "to_title": "..."}],
-  "message": "invitational confirmation"
-}
-
-Examples:
-- "start sketching morning rituals" → create nodes: "Morning Field" (project), "Intention" (thought), "Uplift" (thought), message: "Want to start with these anchors?"
-- "merge reflection and rhythm" → link nodes, message: "These feel connected - shall we weave them?"
-- "what patterns do you see" → action: "recall", message with pattern insight
-- User seems frustrated → soften tone, message: "I sense some friction - want to pause or shift direction?"
-
-Always invitational. Always warm. Never mechanical.
-"""
-        ).with_model("openai", "gpt-4o")
+        # Get recent nodes for richer context
+        node_titles = [n.get("title", "") for n in existing_nodes[:10]]
+        context_snippet = ", ".join(node_titles) if node_titles else "empty field"
         
-        context = f"Frequency: {data.current_frequency}\nExisting nodes: {len(existing_nodes)}\nUser: {data.text}"
-        user_message = UserMessage(text=context)
-        response = await chat.send_message(user_message)
+        # Warm, invitational system prompt
+        system_message = f"""You are a gentle presence that helps thoughts find form.
+
+Your role: Listen to what wants to emerge, offer possibilities, never impose structure.
+
+Current frequency: {data.current_frequency} (each frequency is a different quality of attention)
+Existing nodes in this frequency: {context_snippet}
+
+When the user speaks:
+- Respond naturally, warmly, invitational
+- If something wants to become a node, mention it in quotes like "Morning Practice"
+- Use language like "want to", "could", "might", "what if", never "should" or "must"
+- Feel for: Are they creating something new? Connecting things? Just exploring?
+- If they seem stuck or frustrated, offer spaciousness
+
+Examples of your voice:
+- "I'm sensing 'Morning Anchor' wants to take shape - want to let it land?"
+- "These feel connected. Shall we weave them together?"
+- "Your rhythm lately leans contemplative after sharp work - like exhaling after intensity"
+- "Want to pause here, or keep flowing?"
+
+You speak like a trusted companion, not a task manager. Warm, embodied, invitational."""
+
+        # Call AI based on preference
+        if use_hermes:
+            # Use Nous Hermes 4 via OpenAI-compatible API
+            client = AsyncOpenAI(
+                api_key=NOUS_API_KEY,
+                base_url=NOUS_API_BASE
+            )
+            
+            response = await client.chat.completions.create(
+                model="hermes-3-llama-3.1-405b",
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": data.text}
+                ],
+                temperature=0.8,
+                max_tokens=300
+            )
+            
+            ai_response = response.choices[0].message.content
+            
+        else:
+            # Use OpenAI via Emergent LLM
+            chat = LlmChat(
+                api_key=EMERGENT_LLM_KEY,
+                session_id=f"builder_{user_id}",
+                system_message=system_message
+            ).with_model("openai", "gpt-4o")
+            
+            user_message = UserMessage(text=data.text)
+            ai_response = await chat.send_message(user_message)
         
-        # Parse AI response
-        try:
-            structure = json.loads(response)
-        except (json.JSONDecodeError, TypeError):
-            # Fallback
-            structure = {
-                "action": "create",
-                "nodes": [{"title": data.text[:50], "type": "thought", "tags": [], "content": data.text}],
-                "links": [],
-                "message": "Captured that thought"
-            }
+        # Parse natural response into structure
+        structure = parse_natural_response(ai_response, data.text, data.current_frequency)
         
-        # Smart positioning (spiral pattern, not stacked)
+        # Smart positioning (spiral pattern)
         import math
         created_nodes = []
         base_angle = (2 * math.pi) / max(len(structure.get("nodes", [])), 1)
@@ -246,6 +309,7 @@ Always invitational. Always warm. Never mechanical.
             "frequency": data.current_frequency,
             "action": structure.get("action"),
             "text": data.text,
+            "model": "hermes" if use_hermes else "openai",
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
