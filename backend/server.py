@@ -285,7 +285,7 @@ You speak like a trusted companion, not a task manager. Warm, embodied, invitati
             
             ai_response = response.choices[0].message.content
             
-        else:
+        elif use_emergent:
             # Use Emergent LLM key as fallback
             chat = LlmChat(
                 api_key=EMERGENT_LLM_KEY,
