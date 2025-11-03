@@ -66,13 +66,26 @@ class Node(BaseModel):
     user_id: str
     title: str
     content: str = ""
-    type: str = "thought"  # thought, project, ritual, pattern
+    type: str = "thought"  # thought, project, ritual, pattern, question
     tags: List[str] = []
+    aliases: List[str] = []  # Alternative names
     linked_ids: List[str] = []
     position: Dict[str, float] = {"x": 0, "y": 0}
     frequency: str = "reflect"  # focus, dream, reflect, synthesize
+    
+    # Lineage tracking
+    parent_id: Optional[str] = None
+    merged_from: List[str] = []
+    variant_label: Optional[str] = None
+    
+    # Metrics
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    touched_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    link_count: int = 0
+    
+    # State
+    archived: bool = False
 
 class ConversationInput(BaseModel):
     text: str
