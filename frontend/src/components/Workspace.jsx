@@ -144,7 +144,6 @@ export default function Workspace({ onLogout }) {
       <ConversationalInput
         frequency={frequency}
         onStructureCreated={handleStructureCreated}
-        onUserInput={handleUserInput}
         axiosInstance={axiosInstance}
       />
 
