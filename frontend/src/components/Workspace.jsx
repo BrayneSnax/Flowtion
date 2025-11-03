@@ -7,7 +7,7 @@ import DynamicCanvas from '@/components/DynamicCanvas';
 import ConversationalInput from '@/components/ConversationalInput';
 import PatternInsights from '@/components/PatternInsights';
 import { Toaster } from '@/components/ui/sonner';
-import { Home, Lightbulb, LogOut } from 'lucide-react';
+import { Home, Lightbulb, LogOut, Archive } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
