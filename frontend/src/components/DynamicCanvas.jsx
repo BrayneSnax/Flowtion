@@ -230,26 +230,36 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
               onMouseLeave={() => setHoveredNode(null)}
               data-testid={`node-${node.id}`}
             >
-              <div className={`${style.node} rounded-2xl px-6 py-4 min-w-[200px] shadow-xl border-2 transition-all ${
-                hoveredNode === node.id ? 'shadow-2xl scale-105' : ''
-              }`}>
-                <div className={`${style.text} font-medium mb-1`}>
-                  {node.title}
-                </div>
-                {node.tags && node.tags.length > 0 && (
-                  <div className="flex gap-2 flex-wrap mt-2">
-                    {node.tags.map((tag, i) => (
-                      <span
-                        key={i}
-                        className="text-xs px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-sm"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+              {(() => {
+                const nodeStyle = nodeTypeStyles[node.type] || nodeTypeStyles.thought;
+                return (
+                  <div className={`${nodeStyle.bg} ${nodeStyle.shape} ${nodeStyle.size} px-6 py-4 shadow-xl border-2 ${nodeStyle.border} transition-all ${
+                    hoveredNode === node.id ? 'shadow-2xl scale-105' : ''
+                  }`}>
+                    <div className="flex items-start gap-2">
+                      <span className="text-xl">{nodeStyle.icon}</span>
+                      <div className="flex-1">
+                        <div className="text-white font-medium mb-1">
+                          {node.title}
+                        </div>
+                        {node.tags && node.tags.length > 0 && (
+                          <div className="flex gap-2 flex-wrap mt-2">
+                            {node.tags.map((tag, i) => (
+                              <span
+                                key={i}
+                                className="text-xs px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-sm text-white"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="text-xs opacity-60 mt-2 text-white/80 capitalize">{node.type}</div>
+                      </div>
+                    </div>
                   </div>
-                )}
-                <div className="text-xs opacity-60 mt-2">{node.type}</div>
-              </div>
+                );
+              })()}
             </motion.div>
           );
         })}
