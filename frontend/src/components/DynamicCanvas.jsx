@@ -251,7 +251,7 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
       {/* Nodes */}
       <div className="relative h-full p-8">
         {localNodes.map((node, index) => {
-          const nodeStyle = nodeTypeStyles[node.type] || nodeTypeStyles.thought;
+          const nodeStyle = getNodeStyle(node);
 
           return (
             <motion.div
@@ -264,40 +264,8 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
               animate={{
                 opacity: 1,
                 scale: 1,
-                ...(() => {
-                  const breathingScale = isBreathing ? [1, 1.02, 1] : 1;
-                  
-                  // Behavioral motion based on node type
-                  switch(nodeStyle.behavior) {
-                    case 'pulse': // Ritual - breathing
-                      return {
-                        scale: breathingScale,
-                        transition: { duration: 3, repeat: Infinity, ease: "easeInOut" }
-                      };
-                    case 'orbit': // Pattern - gentle rotation
-                      return {
-                        rotate: isBreathing ? [0, 360] : 0,
-                        transition: { duration: 20, repeat: Infinity, ease: "linear" }
-                      };
-                    case 'expand': // Project - slight outward drift
-                      return {
-                        x: isBreathing ? [0, 5, 0] : 0,
-                        y: isBreathing ? [0, -5, 0] : 0,
-                        transition: { duration: 4, repeat: Infinity, ease: "easeInOut" }
-                      };
-                    case 'seek': // Question - curious drift
-                      return {
-                        x: isBreathing ? [0, 3, -3, 0] : 0,
-                        y: isBreathing ? [0, -3, 3, 0] : 0,
-                        transition: { duration: 5, repeat: Infinity, ease: "easeInOut" }
-                      };
-                    default: // Thought - float
-                      return {
-                        y: isBreathing ? [0, -3, 0] : 0,
-                        transition: { duration: 2.5, repeat: Infinity, ease: "easeInOut" }
-                      };
-                  }
-                })()
+                y: isBreathing ? [0, -3, 0] : 0,
+                transition: { duration: 2.5, repeat: Infinity, ease: "easeInOut" }
               }}
               whileHover={{ scale: 1.05 }}
               style={{
@@ -338,11 +306,16 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <span className="text-xl">{nodeStyle.icon}</span>
                   <div className="flex-1">
                     <div className="text-white font-medium mb-1">
                       {node.title}
                     </div>
+                    {node.content && node.content !== node.title && (
+                      <div className="text-xs text-white/70 mt-1">
+                        {node.content.slice(0, 80)}
+                        {node.content.length > 80 ? '...' : ''}
+                      </div>
+                    )}
                     {node.tags && node.tags.length > 0 && (
                       <div className="flex gap-2 flex-wrap mt-2">
                         {node.tags.map((tag, i) => (
@@ -355,7 +328,6 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
                         ))}
                       </div>
                     )}
-                    <div className="text-xs opacity-60 mt-2 text-white/80 capitalize">{node.type}</div>
                   </div>
                 </div>
               </div>
