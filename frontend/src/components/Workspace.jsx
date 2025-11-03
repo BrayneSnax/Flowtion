@@ -30,6 +30,8 @@ export default function Workspace({ onLogout }) {
   const [insights, setInsights] = useState([]);
   const [showInsights, setShowInsights] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [conversationMessages, setConversationMessages] = useState([]);
+  const [showConversation, setShowConversation] = useState(false);
 
   useEffect(() => {
     loadNodes();
