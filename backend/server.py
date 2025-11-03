@@ -114,6 +114,10 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 # ==================== Auth Routes ====================
 
+@api_router.get("/")
+async def root():
+    return {"message": "Conversational workspace API"}
+
 @api_router.post("/auth/register", response_model=TokenResponse)
 async def register(data: UserRegister):
     existing = await db.users.find_one({"email": data.email}, {"_id": 0})
