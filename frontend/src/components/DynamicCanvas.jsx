@@ -400,6 +400,118 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
           );
         })}
       </div>
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {editingNode && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-50"
+              onClick={() => setEditingNode(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-2xl"
+            >
+              <div className="bg-white rounded-2xl shadow-2xl p-6 mx-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Edit Node</h3>
+                  <button
+                    onClick={() => setEditingNode(null)}
+                    className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                  >
+                    <X size={20} className="text-slate-600" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      defaultValue={editingNode.title}
+                      onChange={(e) => setEditingNode({ ...editingNode, title: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Node title"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Content
+                    </label>
+                    <textarea
+                      defaultValue={editingNode.content}
+                      onChange={(e) => setEditingNode({ ...editingNode, content: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]"
+                      placeholder="Develop your idea here..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Type
+                    </label>
+                    <select
+                      value={editingNode.type}
+                      onChange={(e) => setEditingNode({ ...editingNode, type: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="thought">💭 Thought</option>
+                      <option value="pattern">🔄 Pattern</option>
+                      <option value="ritual">🕯️ Ritual</option>
+                      <option value="project">🎯 Project</option>
+                      <option value="question">❓ Question</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Tags (comma-separated)
+                    </label>
+                    <input
+                      type="text"
+                      defaultValue={editingNode.tags?.join(', ') || ''}
+                      onChange={(e) => setEditingNode({ 
+                        ...editingNode, 
+                        tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean)
+                      })}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="morning, focus, creative"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={() => handleSaveEdit(editingNode.id, {
+                        title: editingNode.title,
+                        content: editingNode.content,
+                        type: editingNode.type,
+                        tags: editingNode.tags
+                      })}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      Save Changes
+                    </button>
+                    <button
+                      onClick={() => setEditingNode(null)}
+                      className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
