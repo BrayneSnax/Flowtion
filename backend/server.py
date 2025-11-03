@@ -174,20 +174,43 @@ def parse_natural_response(text: str, user_input: str, frequency: str) -> Dict[s
     elif any(word in text_lower for word in ["update", "modify", "change", "shift"]):
         action = "modify"
     
+    # Determine node type based on keywords and frequency
+    def infer_node_type(title: str) -> str:
+        title_lower = title.lower()
+        
+        # Pattern: recurring structures
+        if any(word in title_lower for word in ["pattern", "cycle", "rhythm", "habit", "routine"]):
+            return "pattern"
+        
+        # Ritual: practices and ceremonies
+        if any(word in title_lower for word in ["ritual", "practice", "ceremony", "morning", "evening", "daily"]):
+            return "ritual"
+        
+        # Project: goals and endeavors
+        if any(word in title_lower for word in ["project", "goal", "plan", "framework", "system", "build"]):
+            return "project"
+        
+        # Question: inquiries and explorations
+        if "?" in title or any(word in title_lower for word in ["what", "why", "how", "when", "could", "would"]):
+            return "question"
+        
+        # Default: thought
+        return "thought"
+    
     # Extract potential node titles - be AGGRESSIVE
     nodes = []
     
     # Method 1: Double quotes
     double_quoted = re.findall(r'"([^"]+)"', text)
-    nodes.extend([{"title": t, "type": "thought", "tags": [], "content": user_input} for t in double_quoted[:5]])
+    nodes.extend([{"title": t, "type": infer_node_type(t), "tags": [], "content": user_input} for t in double_quoted[:5]])
     
     # Method 2: Single quotes
     single_quoted = re.findall(r"'([^']+)'", text)
-    nodes.extend([{"title": t, "type": "thought", "tags": [], "content": user_input} for t in single_quoted[:5]])
+    nodes.extend([{"title": t, "type": infer_node_type(t), "tags": [], "content": user_input} for t in single_quoted[:5]])
     
     # Method 3: Title case phrases (likely concepts)
     title_case = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b', text)
-    nodes.extend([{"title": t, "type": "thought", "tags": [], "content": user_input} for t in title_case[:3]])
+    nodes.extend([{"title": t, "type": infer_node_type(t), "tags": [], "content": user_input} for t in title_case[:3]])
     
     # Remove duplicates while preserving order
     seen = set()
@@ -202,7 +225,7 @@ def parse_natural_response(text: str, user_input: str, frequency: str) -> Dict[s
     if not unique_nodes:
         unique_nodes.append({
             "title": user_input[:60] if len(user_input) > 60 else user_input,
-            "type": "thought",
+            "type": infer_node_type(user_input),
             "tags": [],
             "content": user_input
         })
