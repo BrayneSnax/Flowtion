@@ -35,7 +35,7 @@ export default function Workspace({ onLogout }) {
   const [hoveredArtifact, setHoveredArtifact] = useState(null);
 
   useEffect(() => {
-    loadNodes();
+    loadArtifacts();
     loadInsights();
   }, [frequency]);
 
