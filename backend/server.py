@@ -536,6 +536,44 @@ async def update_node(node_id: str, updates: dict, user_id: str = Depends(get_cu
     updated = await db.nodes.find_one({"id": node_id}, {"_id": 0})
     return updated
 
+@api_router.post("/nodes/archive-all")
+async def archive_all_nodes(frequency: str, user_id: str = Depends(get_current_user)):
+    """Archive all nodes in a frequency - creates snapshot and clears field"""
+    
+    # Get all nodes in this frequency
+    nodes = await db.nodes.find(
+        {"user_id": user_id, "frequency": frequency},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    if nodes:
+        # Create archive snapshot
+        await db.archived_sessions.insert_one({
+            "user_id": user_id,
+            "frequency": frequency,
+            "nodes": nodes,
+            "archived_at": datetime.now(timezone.utc).isoformat(),
+            "node_count": len(nodes)
+        })
+        
+        # Delete nodes from active field
+        await db.nodes.delete_many({"user_id": user_id, "frequency": frequency})
+    
+    return {
+        "archived": len(nodes),
+        "message": f"Archived {len(nodes)} nodes from {frequency} field"
+    }
+
+@api_router.delete("/nodes/{node_id}")
+async def delete_node(node_id: str, user_id: str = Depends(get_current_user)):
+    """Delete a single node"""
+    result = await db.nodes.delete_one({"id": node_id, "user_id": user_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    return {"deleted": True, "node_id": node_id}
+
 # ==================== Pattern Recognition ====================
 
 @api_router.get("/patterns/insights")
