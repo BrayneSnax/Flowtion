@@ -191,6 +191,13 @@ export default function Workspace({ onLogout }) {
         />
       </div>
 
+      {/* Conversation Stream - persistent dialogue */}
+      <ConversationStream
+        messages={conversationMessages}
+        isVisible={showConversation}
+        onToggle={() => setShowConversation(!showConversation)}
+      />
+
       {/* Input at bottom - model selector directly above */}
       <ConversationalInput
         frequency={frequency}
