@@ -94,9 +94,78 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
   const [localNodes, setLocalNodes] = useState(nodes);
   const style = frequencyStyles[frequency] || frequencyStyles.reflect;
 
-  useEffect(() => {
-    setLocalNodes(nodes);
-  }, [nodes]);
+  const handleDragEnd = async (nodeId, event, info) => {
+    const node = localNodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    const newX = node.position.x + info.offset.x;
+    const newY = node.position.y + info.offset.y;
+
+    // Update local state immediately
+    setLocalNodes(localNodes.map(n => 
+      n.id === nodeId 
+        ? { ...n, position: { x: newX, y: newY } }
+        : n
+    ));
+
+    // Persist to backend
+    try {
+      const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL;
+      const token = localStorage.getItem('token');
+      await fetch(`${BACKEND_URL}/api/nodes/${nodeId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          position: { x: newX, y: newY }
+        })
+      });
+    } catch (error) {
+      console.error('Failed to save position:', error);
+    }
+  };
+
+  const handleDelete = async (nodeId) => {
+    if (!window.confirm('Delete this node?')) return;
+
+    try {
+      const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL;
+      const token = localStorage.getItem('token');
+      await fetch(`${BACKEND_URL}/api/nodes/${nodeId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      setLocalNodes(localNodes.filter(n => n.id !== nodeId));
+    } catch (error) {
+      console.error('Failed to delete node:', error);
+    }
+  };
+
+  const handleSaveEdit = async (nodeId, updates) => {
+    try {
+      const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL;
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${BACKEND_URL}/api/nodes/${nodeId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updates)
+      });
+      
+      const updated = await response.json();
+      setLocalNodes(localNodes.map(n => n.id === nodeId ? updated : n));
+      setEditingNode(null);
+    } catch (error) {
+      console.error('Failed to save edit:', error);
+    }
+  };
 
   // Breathing detection
   useEffect(() => {
