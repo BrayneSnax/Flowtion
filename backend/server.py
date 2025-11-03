@@ -339,28 +339,46 @@ You're the architect. Clarify. Structure. Refine. Make it coherent."""
         # Parse natural response into structure
         structure = parse_natural_response(ai_response, data.text, data.current_frequency)
         
-        # Smart positioning (spiral pattern)
+        # Get existing nodes to find center point
+        existing_count = len(existing_nodes)
+        
+        # Smart positioning (spiral pattern centered around existing field)
         import math
         created_nodes = []
-        base_angle = (2 * math.pi) / max(len(structure.get("nodes", [])), 1)
+        node_count = len(structure.get("nodes", []))
         
-        for i, node_data in enumerate(structure.get("nodes", [])):
-            angle = base_angle * i
-            radius = 200 + (i * 50)
-            x = 500 + (radius * math.cos(angle))
-            y = 300 + (radius * math.sin(angle))
+        if node_count > 0:
+            base_angle = (2 * math.pi) / node_count
             
-            node = Node(
-                user_id=user_id,
-                title=node_data.get("title", "Untitled"),
-                content=node_data.get("content", ""),
-                type=node_data.get("type", "thought"),
-                tags=node_data.get("tags", []),
-                frequency=data.current_frequency,
-                position={"x": x, "y": y}
-            )
-            await db.nodes.insert_one(node.model_dump())
-            created_nodes.append(node)
+            # Center point adjusts based on existing nodes
+            if existing_count == 0:
+                # First nodes - use viewport center
+                center_x, center_y = 600, 400
+            else:
+                # Calculate center from existing nodes
+                avg_x = sum(n.get("position", {}).get("x", 600) for n in existing_nodes) / existing_count
+                avg_y = sum(n.get("position", {}).get("y", 400) for n in existing_nodes) / existing_count
+                # New nodes orbit around existing cluster
+                center_x, center_y = avg_x, avg_y
+            
+            for i, node_data in enumerate(structure.get("nodes", [])):
+                angle = base_angle * i
+                # Vary radius for visual interest
+                radius = 180 + (i * 40) + (existing_count * 20)
+                x = center_x + (radius * math.cos(angle))
+                y = center_y + (radius * math.sin(angle))
+                
+                node = Node(
+                    user_id=user_id,
+                    title=node_data.get("title", "Untitled"),
+                    content=node_data.get("content", ""),
+                    type=node_data.get("type", "thought"),
+                    tags=node_data.get("tags", []),
+                    frequency=data.current_frequency,
+                    position={"x": x, "y": y}
+                )
+                await db.nodes.insert_one(node.model_dump())
+                created_nodes.append(node)
         
         # Log pattern
         await db.patterns.insert_one({
