@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import FrequencySelector from '@/components/FrequencySelector';
-import DynamicCanvas from '@/components/DynamicCanvas';
+import ArtifactRenderer from '@/components/ArtifactRenderer';
 import ConversationalInput from '@/components/ConversationalInput';
 import ConversationStream from '@/components/ConversationStream';
 import PatternInsights from '@/components/PatternInsights';
