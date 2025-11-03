@@ -29,11 +29,6 @@ export default function ConversationalInput({ frequency, onStructureCreated, axi
     setProcessing(true);
     const userInput = input;
     setInput('');
-    
-    // Pass user input to parent
-    if (onUserInput) {
-      onUserInput(userInput);
-    }
 
     try {
       const response = await axiosInstance.post(`${API}/converse`, {
@@ -48,10 +43,10 @@ export default function ConversationalInput({ frequency, onStructureCreated, axi
         action: response.data.action
       });
       
-      // Show brief toast confirmation
-      if (response.data.nodes && response.data.nodes.length > 0) {
-        toast.success(`${response.data.nodes.length} node${response.data.nodes.length > 1 ? 's' : ''} added to field`, {
-          duration: 2000
+      // Show brief toast with AI message
+      if (response.data.message) {
+        toast.success(response.data.message, {
+          duration: 3000
         });
       }
     } catch (error) {
