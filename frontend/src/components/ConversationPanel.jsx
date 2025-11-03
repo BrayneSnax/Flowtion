@@ -37,19 +37,19 @@ export default function ConversationPanel({ messages, onClose, isVisible }) {
   };
 
   return (
-    <div className="fixed left-4 top-20 bottom-32 w-96 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl z-40 flex flex-col border border-slate-200">
+    <div className="fixed left-4 top-20 bottom-32 w-80 bg-white/90 backdrop-blur-lg rounded-2xl shadow-2xl z-30 flex flex-col border border-slate-200/50">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-200">
+      <div className="flex items-center justify-between p-3 border-b border-slate-200/50">
         <div className="flex items-center gap-2">
-          <Sparkles size={18} className="text-indigo-500" />
-          <h2 className="text-lg font-medium text-slate-900">Dialogue Flow</h2>
+          <Sparkles size={16} className="text-indigo-500" />
+          <h2 className="text-sm font-medium text-slate-900">Flow</h2>
         </div>
         <button
           onClick={onClose}
-          className="p-2 rounded-full hover:bg-slate-100 transition-colors"
-          title="Close conversation"
+          className="p-1.5 rounded-full hover:bg-slate-100 transition-colors"
+          title="Hide dialogue"
         >
-          <X size={18} className="text-slate-600" />
+          <X size={16} className="text-slate-400" />
         </button>
       </div>
 
