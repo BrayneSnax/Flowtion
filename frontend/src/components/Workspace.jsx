@@ -60,27 +60,11 @@ export default function Workspace({ onLogout }) {
     if (data.nodes && data.nodes.length > 0) {
       setNodes([...nodes, ...data.nodes]);
     }
-    
-    // Add AI response to conversation with all details
-    if (data.message) {
-      setConversationMessages(prev => [...prev, {
-        role: 'assistant',
-        content: data.message,
-        action: data.action || 'create',
-        nodes: data.nodes || [],
-        links: data.links || [],
-        timestamp: new Date().toISOString()
-      }]);
-    }
   };
 
   const handleUserInput = (userText) => {
-    // Add user message to conversation
-    setConversationMessages(prev => [...prev, {
-      role: 'user',
-      content: userText,
-      timestamp: new Date().toISOString()
-    }]);
+    // User input captured but no separate conversation panel
+    // Everything manifests on canvas
   };
 
   const handleLogout = () => {
