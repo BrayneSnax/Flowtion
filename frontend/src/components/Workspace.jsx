@@ -65,12 +65,14 @@ export default function Workspace({ onLogout }) {
       setNodes([...nodes, ...data.nodes]);
     }
     
-    // Add AI response to conversation
+    // Add AI response to conversation with all details
     if (data.message) {
       setConversationMessages(prev => [...prev, {
         role: 'assistant',
         content: data.message,
+        action: data.action || 'create',
         nodes: data.nodes || [],
+        links: data.links || [],
         timestamp: new Date().toISOString()
       }]);
     }
