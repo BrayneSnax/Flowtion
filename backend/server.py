@@ -285,7 +285,7 @@ async def update_node(node_id: str, updates: dict, user_id: str = Depends(get_cu
 
 @api_router.get("/patterns/insights")
 async def get_pattern_insights(user_id: str = Depends(get_current_user)):
-    """Analyze user's creative rhythms"""
+    """Analyze user's creative rhythms with affective language"""
     if not EMERGENT_LLM_KEY:
         return {"insights": []}
     
@@ -299,18 +299,32 @@ async def get_pattern_insights(user_id: str = Depends(get_current_user)):
         if len(patterns) < 5:
             return {"insights": []}
         
-        # Ask AI to identify patterns
+        # Ask AI to identify patterns with affective language
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"pattern_{user_id}",
-            system_message="You identify creative rhythms and patterns. Be concise and insightful."
+            system_message="""You notice creative rhythms and patterns. Speak in affective, embodied language.
+
+Not: "You created 5 synthesis nodes after focus sessions"
+But: "Your rhythm leans contemplative after sharp work - like exhaling after intensity"
+
+Not: "High activity in dream frequency"
+But: "You've been living in the associative flow lately - ideas branching, connections multiplying"
+
+Be specific but poetic. Grounded but warm. Notice tempo, texture, emotional arc.
+"""
         ).with_model("openai", "gpt-4o")
         
-        pattern_summary = "\n".join([
-            f"{p['frequency']} → {p['action']}" for p in patterns[:20]
-        ])
+        # Build pattern context
+        pattern_context = []
+        for p in patterns[:20]:
+            pattern_context.append(f"{p.get('frequency')} frequency → {p.get('action')} action")
+            if p.get('text'):
+                pattern_context.append(f"  \"{p.get('text')[:50]}...\"")
         
-        prompt = f"Recent activity:\n{pattern_summary}\n\nWhat patterns emerge? What does this suggest about their creative rhythm? Be specific and brief."
+        pattern_summary = "\n".join(pattern_context)
+        
+        prompt = f"Recent creative activity:\n{pattern_summary}\n\nWhat rhythms emerge? Describe the felt quality of their pattern. 2-3 sentences, warm and specific."
         user_message = UserMessage(text=prompt)
         response = await chat.send_message(user_message)
         
