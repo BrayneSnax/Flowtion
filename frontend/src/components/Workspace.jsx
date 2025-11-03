@@ -114,17 +114,6 @@ export default function Workspace({ onLogout }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowConversation(!showConversation)}
-            className="p-2 rounded-full hover:bg-slate-100 transition-colors relative"
-            title="Toggle conversation"
-            data-testid="conversation-button"
-          >
-            <MessageCircle size={20} className="text-slate-600" />
-            {conversationMessages.length > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full" />
-            )}
-          </button>
           {insights.length > 0 && (
             <button
               onClick={() => setShowInsights(!showInsights)}
