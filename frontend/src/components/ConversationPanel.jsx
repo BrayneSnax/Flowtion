@@ -1,4 +1,4 @@
-import { X, Sparkles, Link2, Archive, Brain, Plus, RefreshCw } from 'lucide-react';
+import { X, Sparkles, Link2, Archive, Brain, Plus, RefreshCw, MessageCircle } from 'lucide-react';
 
 export default function ConversationPanel({ messages, onClose, isVisible }) {
   if (!isVisible) return null;
