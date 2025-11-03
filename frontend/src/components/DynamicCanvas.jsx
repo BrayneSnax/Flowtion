@@ -90,7 +90,13 @@ export default function DynamicCanvas({ frequency, nodes, onNodeClick }) {
   const [hoveredNode, setHoveredNode] = useState(null);
   const [isBreathing, setIsBreathing] = useState(false);
   const [idleTime, setIdleTime] = useState(0);
+  const [editingNode, setEditingNode] = useState(null);
+  const [localNodes, setLocalNodes] = useState(nodes);
   const style = frequencyStyles[frequency] || frequencyStyles.reflect;
+
+  useEffect(() => {
+    setLocalNodes(nodes);
+  }, [nodes]);
 
   // Breathing detection
   useEffect(() => {
