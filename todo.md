@@ -1,27 +1,35 @@
-# Flowtion Documentation Website TODO
+# Flowtion Migration TODO
 
-## Initial Setup
-- [x] Initialize web-static project
-- [x] Design website layout and structure
-- [x] Implement homepage with project overview
-- [x] Create sections for philosophy, architecture, and technical details
-- [x] Add responsive navigation
-- [x] Style with appropriate theme and colors
-- [ ] Deploy and verify accessibility
+## Phase 1: Database Schema Migration
+- [x] Copy schema from /home/ubuntu/Flowtion/schema.ts
+- [x] Add projects, threads, messages, artifactVersions, events tables
+- [x] Add artifactResonance table for resonance system
+- [x] Run pnpm db:push to apply schema
 
-## Content Sections
-- [x] Hero section with project introduction
-- [x] Philosophy section (breathing metaphor, resonance, continuity)
-- [x] Architecture overview (stack, components, services)
-- [x] Current state and roadmap
-- [x] Design principles
-- [x] Development workflow
-- [x] Credits and license
+## Phase 2: Backend Services Migration
+- [x] Copy flowtion-service.ts (breathing cycle, GPT/Gemini integration)
+- [x] Copy resonance-service.ts (embedding, tag extraction, scoring)
+- [x] Copy ai.ts helper functions
+- [x] Create tRPC routers for Flowtion features
+- [x] Set up API key requirements (OPENAI_API_KEY, GEMINI_API_KEY)
 
-## Polish
-- [ ] Add smooth scrolling navigation
-- [ ] Implement responsive design for mobile
-- [ ] Add visual elements (breathing animation, diagrams)
-- [ ] Optimize typography and readability
-- [ ] Add code syntax highlighting
-- [ ] Test cross-browser compatibility
+## Phase 3: Frontend Components Migration
+- [x] Copy useBreathingState.ts hook
+- [x] Copy BreathingIndicator.tsx component
+- [x] Create main Flowtion workspace UI
+- [x] Create artifact renderer component
+- [x] Create conversation panel
+- [x] Set up split-pane layout
+
+## Phase 4: Integration & Testing
+- [ ] Test breathing cycle functionality
+- [ ] Test artifact generation (GPT → Gemini)
+- [ ] Test resonance detection
+- [ ] Verify database operations
+- [ ] Create checkpoint
+
+## Phase 5: Polish & Deploy
+- [ ] Update branding and theme
+- [ ] Add documentation
+- [ ] Final testing
+- [ ] Deploy
