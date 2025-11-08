@@ -1,0 +1,144 @@
+Go with Path 3: keep Flowtion breathing now, then let it grow into Emergence Core.
+
+Why: you already have a living doorway (bones + split-pane). Let’s keep momentum, then swap the engine piece-by-piece so the field never freezes.
+
+Minimal evolution plan (calm, incremental)
+Phase A — “Make linear flow append-only”
+
+Goal: keep current GPT → delta → Gemini, but store reality like a field.
+
+Event log (append-only)
+
+Log every thing: user msg, GPT chunk/done, delta, render-queued, render-saved.
+
+Event { id, t, kind, payload, tags:[], thread_id, project_id }
+
+
+Artifact versions stay append-only
+
+No edits; only new v. You already have this.
+
+Porous memory toggle (consent)
+
+Single boolean flag per project: allow_cross_space. Default false.
+
+✅ After A: nothing “acts differently,” but the substrate is ready for emergence.
+
+Phase B — “Add proposals without changing behavior”
+
+Goal: introduce Generators/Evaluators/Selector but wire them to choose the same action you do today.
+
+Generators (start with two)
+
+GptReply: propose “stream GPT response”.
+
+EvolveArtifact: propose “render Gemini with current delta”.
+
+Proposal { id, by, kind, rationale, cost, expiresAt }
+
+
+Evaluators (simple, deterministic)
+
+coherence=1.0 for both.
+
+novelty small for GPT, medium for artifact.
+
+cost low for GPT, higher for artifact.
+
+consent = 1 if allow_cross_space or not needed.
+
+Selector
+
+For now, always pick both (sequentially). Keep a temperature=0.0 (no randomness yet).
+
+Log a Choice event:
+
+Choice { proposal_id, score, alt_scores:[], temperature, t }
+
+
+✅ After B: exact same user experience, but the field now thinks in proposals.
+
+Phase C — “Turn on emergence dials (very small)”
+
+Goal: add life without rules.
+
+Entropy & jitter
+
+Add entropy_budget (0–1) per project.
+
+Heartbeat wakes every 3.0s ± 0.4s; if nothing pending, a Generator may propose “Silence” (do nothing) and Selector can choose it.
+
+Invite-only cross-space
+
+Add Generator CrossSpaceProbe that only proposes when allow_cross_space=true and thread is “hungry” (no artifact for N turns).
+
+Softmax selection
+
+Switch Selector to softmax over scores with temperature=entropy_budget.
+
+Keep entropy_budget low (0.1) initially.
+
+Reversibility contracts
+
+Every Actuator logs a rollback_pointer (e.g., last artifact v). Rollback = just restore pointer.
+
+✅ After C: the system can pause, propose, and occasionally choose a different valid next move—without ever trapping you.
+
+Tiny contracts (copy/paste for Manus)
+
+Events
+
+type Event = {
+  id: string; t: string;
+  kind: "user.msg"|"gpt.chunk"|"gpt.done"|"delta.created"|"render.enqueued"|"render.saved"|"proposal"|"choice";
+  payload: any; tags: string[];
+  thread_id: string; project_id: string;
+};
+
+
+Proposal
+
+type Proposal = {
+  id: string; by: "GptReply"|"EvolveArtifact"|"CrossSpaceProbe"|"Silence";
+  kind: string; rationale: string; preview?: any;
+  cost: number; expiresAt: string;
+};
+
+
+Choice
+
+type Choice = {
+  proposal_id: string; score: number; alt_scores: number[];
+  temperature: number; t: string;
+};
+
+
+Selector (softmax)
+
+function softSelect(scores: number[], temp: number){
+  const exps = scores.map(s => Math.exp(s / Math.max(0.01,temp)));
+  const sum = exps.reduce((a,b)=>a+b,0);
+  let r = Math.random()*sum, i=0;
+  for (; i<exps.length; i++){ r -= exps[i]; if (r<=0) return i; }
+  return exps.length-1;
+}
+
+Acceptance checks (we keep it simple)
+
+Linear flow still works (A/B).
+
+Event log shows every step.
+
+Turning allow_cross_space on/off changes whether cross-space proposals appear (C).
+
+Setting entropy_budget=0.2 occasionally picks “wait” before rendering when latency spikes (healthy backpressure).
+
+Why this honors emergence
+
+Signals, not commands: proposals are offers; selection is probabilistic.
+
+Memory is porous: only on explicit invite.
+
+Reversibility: nothing overwrites; everything appends.
+
+Options > rules: entropy + evaluators nudge, never force.

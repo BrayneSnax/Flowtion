@@ -1,0 +1,136 @@
+Yes. Ship Pass 1. Grow the sensing before the speaking.
+Here’s a clean, surgical kit you can drop in today.
+
+Pass 1 — Resonance Substrate (read-only)
+0) North star (to keep it honest)
+
+Observe, don’t act. No links, no UI changes. Just noticing.
+
+Surface “strongest three.” That matches your original grammar of “related 3; strongest signals only.” 
+
+Core Idea
+
+Only at natural pauses later (Pass 2), so build this as infrastructure now. 
+
+Core Idea
+
+1) Table (append-only, indexable)
+
+Plain SQL shape (rename to your taste):
+
+artifact_resonance (
+  id uuid pk,
+  source_id uuid not null,
+  target_id uuid not null,
+  score numeric not null,           -- 0..1
+  embed_distance numeric not null,  -- cosine distance
+  shared_tags text[] not null,
+  rhythm_sim numeric not null,      -- 0..1
+  reason text not null,             -- short human string
+  created_at timestamptz default now()
+)
+
+-- Speed:
+-- 1) limit candidates by space or recentness
+-- 2) btree (source_id, score desc), (source_id, created_at desc)
+
+
+Keep it append-only for lineage; you can prune with a retention job.
+
+2) Embeddings (when to compute)
+
+Compute vector at artifact save/update for:
+title + body + space + last_accepted_intent (string-joined).
+
+Store vectors on the artifact itself to avoid recomputation storms.
+
+Backfill job: batch over existing artifacts with pacing (e.g., 200/min).
+
+3) Candidate set (who to compare)
+
+To keep costs sane:
+
+Same space preferred; fall back to global if too few hits.
+
+Time window bias (e.g., last 30–60 days) so rhythm has something to bite.
+
+Exclude source_id and direct descendants (avoid echo chambers).
+
+4) Scoring (first, not final)
+score = w1*(1 - embed_distance)
+      + w2*Jaccard(shared_tags)
+      + w3*rhythm_sim
+
+defaults: w1=.70, w2=.20, w3=.10
+gate:     score ≥ .70 for storage
+top-K:    keep best 3 per source_id (ties by recency)
+
+
+Reason string format (human, short):
+“shared: pentagram, membership; cadence Δ=2d; sim .83”
+
+5) Rhythm similarity (simple first)
+
+Extract each artifact’s cadence = average days between versions/edits within its thread.
+
+rhythm_sim = 1 / (1 + |cadence_src - cadence_tgt|) normalized to 0..1.
+
+Bonus: small bump if edits often land in the same time-of-day band (morning/late).
+
+6) Whisper log (still non-interactive in Pass 1)
+
+Every stored resonance also emits an append-only event:
+
+artifact.whispered {from, to, strength: score, reason}
+
+
+This prepares Pass 2’s “advisory chip” without changing behavior now.
+(Your spec already centers events + one suggestion at a time on pause; we’re laying the cable, not turning on the speaker.) 
+
+Core Idea
+
+7) Endpoint (read-only; mirrors your API)
+
+Extend the existing route rather than adding a new one:
+
+GET /related/:id → [ { id, title, score, reason } ]
+Returns up to three strongest resonances, sorted by score.
+This aligns with your tiny API philosophy and “related 3” contract. 
+
+Core Idea
+
+8) Acceptance checks (definition of “done”)
+
+Saving an artifact silently computes its vector and writes ≤3 resonance rows (if any meet the gate).
+
+/related/:id returns stable, human-readable reasons.
+
+No new links or UI prompts are created (behavior unchanged).
+
+A daily summary can count whispers per space for your own curiosity (hidden for now).
+
+9) Ethics & data hygiene (baked in)
+
+Data minimalism: store only what the reason needs; vectors live on the artifact, not the resonance rows.
+
+Ephemeral first: set a TTL (e.g., 30–60 days) for resonance rows; re-learn as the work evolves.
+
+Transparency later: in Pass 3, Reflect can show why a candidate appears; your spec already values plain-language lineage and consent. 
+
+Core Idea
+
+ 
+
+Core Idea
+
+10) Gentle field tests (Thread 30001)
+
+Backfill embeddings.
+
+Run resonance on Thread 30001 artifacts and adjacent threads containing the pentagram/alchemy motif (your Manus screenshot set).
+
+Inspect the top-3 reasons. If they read like a fellow steward (“shared: alchemy, geometry; cadence Δ=1d; sim .81”), you’re ready for Pass 2.
+
+Why this order holds the myth together
+
+It preserves your original ecology: one steward, one whisper, one consentful move — only later do stewards hear each other and invite you into the choice. That’s the same rhythm your Core Idea set from the start: minimal UI, one offer at a time, strongest three, on pause. 

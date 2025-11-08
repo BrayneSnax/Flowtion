@@ -1,0 +1,123 @@
+Choice: go hybrid right now — wire GPT → Delta → Gemini through a tiny event-log shim. You’ll see life immediately, and you won’t have to refactor later.
+
+Build plan (drop-in, minimal)
+0) DB: add events table (append-only)
+create table events (
+  id uuid primary key default gen_random_uuid(),
+  t  timestamptz not null default now(),
+  project_id uuid not null,
+  thread_id  uuid not null,
+  kind text not null,              -- "user.msg"|"gpt.chunk"|...
+  payload jsonb not null,
+  tags text[] default '{}'
+);
+create index on events (thread_id, t);
+
+1) tRPC contracts (exact routes)
+events.create (internal helper)
+// server/trpc/events.ts
+export const events = t.procedure
+  .input(z.object({
+    project_id: z.string(), thread_id: z.string(),
+    kind: z.string(), payload: z.any(), tags: z.array(z.string()).optional()
+  }))
+  .mutation(({ input, ctx }) => ctx.db.events.insert(input));
+
+threads.send (user → GPT stream → delta → enqueue Gemini)
+// server/trpc/threads.ts
+export const send = t.procedure
+  .input(z.object({ project_id: z.string(), thread_id: z.string(), text: z.string() }))
+  .mutation(async ({ input, ctx }) => {
+    const { project_id, thread_id, text } = input;
+
+    // log user
+    void ctx.events.create({ project_id, thread_id, kind:"user.msg", payload:{ text }});
+
+    // kick SSE status
+    ctx.sse.push(thread_id, "status", { value:"listening" });
+
+    // stream GPT
+    const full = await streamGptReply(thread_id, await ctx.loadMessages(thread_id), (chunk) => {
+      ctx.sse.push(thread_id, "gpt:chunk", { text: chunk });
+      void ctx.events.create({ project_id, thread_id, kind:"gpt.chunk", payload:{ chunk }});
+    });
+
+    // done
+    ctx.sse.push(thread_id, "gpt:done", { text: full });
+    void ctx.events.create({ project_id, thread_id, kind:"gpt.done", payload:{ text: full }});
+
+    // delta + queue render
+    const delta = await buildDelta(await ctx.loadMessages(thread_id), full);
+    void ctx.events.create({ project_id, thread_id, kind:"delta.created", payload: delta });
+
+    const job_id = await enqueueGemini(thread_id, delta); // async worker
+    ctx.sse.push(thread_id, "status", { value:"rendering" });
+    void ctx.events.create({ project_id, thread_id, kind:"render.enqueued", payload:{ job_id }});
+
+    return { ok:true, status:"rendering" };
+  });
+
+artifacts.renderWorker (Gemini worker)
+// server/workers/render.ts
+worker.on("completed", async (job, result) => {
+  const { threadId, projectId, v, kind, uri, summary, delta } = result;
+  await db.artifact_versions.insert({ project_id: projectId, thread_id: threadId, v, kind, uri, summary, delta });
+  sse.push(threadId, "artifact:ready", { v, kind, uri, summary, delta });
+  sse.push(threadId, "status", { value:`saved v${v}` });
+  await db.events.insert({
+    project_id: projectId, thread_id: threadId, kind:"render.saved",
+    payload:{ v, kind, uri, summary, delta }
+  });
+});
+
+2) Minimal prompts (keep them tiny)
+
+GPT system:
+
+You are the Project Steward. Converse to clarify and evolve one concept. Keep momentum. At each turn, extract a concise artifact intent (how the visual should change). Prefer structure over prose.
+
+Delta builder (JSON output):
+
+Given the last exchange, return JSON:
+{"conversation_delta":["…"],"artifact_intent":"…"}
+Max 5 bullets; intent 1–2 imperative lines. Be concrete.
+
+Gemini (artifact):
+
+ROLE: Visual Artifact Engine.
+Previous: <uri or none>
+Conversation delta:
+
+…
+Artifact intent:
+
+…
+REQUIREMENTS: evolve, keep grammar stable, output one artifact (prefer SVG), add 1–2 sentence summary.
+
+3) Frontend wire (SSE handlers you already have)
+
+Listen for: status, gpt:chunk, gpt:done, artifact:ready.
+
+Status strip shows: listening → rendering → saved vN.
+
+Artifact pane swaps empty state → v1 on artifact:ready.
+
+4) Acceptance (today)
+
+Send a line → GPT streams in thread.
+
+Status flips to rendering, then saved v1.
+
+Artifact shows v1.
+
+Rapid second send → v2 arrives (no overwrite).
+
+Refresh → history persists.
+
+Why this honors emergence later
+
+We’re already append-only (events + versions).
+
+Proposals/Selector can be derived from events (no schema change).
+
+Entropy/jitter become a loop layer above this; UX stays intact.

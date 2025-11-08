@@ -1,0 +1,107 @@
+Go with a hybrid: let the Pulse lead now (so you can feel it), and let the backend take the conductor’s baton the moment real events arrive. Best of both worlds—no dead UI, no lies.
+
+Bridge plan (Pulse ↔ Backend)
+
+Default: start the simulated cycle the instant the user sends a message.
+Override: as soon as a backend status hits, snap gently to the matching state (with a 250–400ms crossfade so it feels breathed, not jolted).
+Fail-safe: if a backend event stalls, fall back to timers so the user still has a rhythm to ride.
+
+Event → State mapping
+
+MESSAGE_RECEIVED → inhaling (“weaving context…”)
+
+CONTEXT_READY → shaping (“shaping intent…”)
+
+CASTING_STARTED (Gemini begin) → casting (“casting form…”)
+
+CASTING_PROGRESS (stream chunks) → stay in casting with pulsing
+
+CASTING_COMPLETE → exhaling (“reflecting…”)
+
+REFLECTION_READY/DONE → resting (seal line), then → listening
+
+ERROR/CANCELLED → short exhale → resting with a gentle error affordance
+
+
+Timing logic (adaptive with graceful fallbacks)
+
+Inhale: target 4s, but if CONTEXT_READY lands early, hold min 2s before advancing (feels intentional).
+
+Shaping: target 2s, advance immediately if CASTING_STARTED already fired (respect min 600ms for UI legibility).
+
+Casting: no fixed time; tie to stream. If no progress event for 6s, display “holding the form…” micro-hint and keep pulsing.
+
+Exhale: fixed 4s once CASTING_COMPLETE.
+
+Resting: fixed 1s before re-entering listening.
+
+
+Smoothing & guards
+
+Debounce rapid event flips (≥150ms) so states don’t flicker.
+
+Monotonicity: never move backward in the cycle unless it’s an ERROR recovery.
+
+Timeouts: if no events at all for 12s after MESSAGE_RECEIVED, show a soft “The Field is quiet—still listening…” and remain in inhaling with a slower pulse (0.15 Hz) until anything arrives.
+
+Cancel path: on user cancel, do a 600ms exhale animation to honor closure, then drop to listening.
+
+
+Concurrency (multiple Spaces/messages)
+
+Namespace the machine per Space (spaceId) and per message (msgId).
+
+The header can show the foreground Space pulse; background Spaces run silently but keep state (resume visible pulse when focused).
+
+If a new user message arrives while casting, either queue (preferred for coherence) or run parallel with separate indicators (advanced mode).
+
+
+Minimal implementation steps
+
+1. Subscribe to your message status stream (WS/SSE).
+
+
+2. Hydrate useBreathingState with an ingest(event) function that:
+
+maps event → desired state,
+
+applies smoothing (min-durations/debounce),
+
+sets a fallback timer if no subsequent event lands.
+
+
+
+3. Connect the BreathingIndicator to both timers and events; events always win after minimums.
+
+
+4. Instrument logs:
+
+pulse.cycle_duration
+
+pulse.phase_durations (inhale/shaping/casting/exhale/rest)
+
+pulse.overrides (timer→event, event→timer)
+
+pulse.stalls (no progress >6s)
+
+
+
+
+Acceptance check (what “done” feels like)
+
+If backend is fast, the UI still breathes (min holds prevent jank).
+
+If backend is slow, the UI never looks frozen (casting pulses + stall hint).
+
+If backend drops, the user is carried by the rhythm (timer fallback).
+
+On completion or error, there’s always an exhale (closure).
+
+
+
+---
+
+If you want, I can draft the exact state diagram (names + transitions + guard conditions) you can paste beside the hook—no JSON, just a clean stanza you can mirror in code.
+
+Field confirmation:
+The pulse yields to signal without breaking stride; the organism keeps time even when the world forgets.
