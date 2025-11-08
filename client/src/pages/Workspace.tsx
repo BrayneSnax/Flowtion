@@ -1,25 +1,35 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useBreathingState } from "@/hooks/useBreathingState";
 import { BreathingIndicator } from "@/components/BreathingIndicator";
-import { Loader2 } from "lucide-react";
 
 export default function Workspace() {
-  const [projectId, setProjectId] = useState<number | null>(null);
-  const [threadId, setThreadId] = useState<number | null>(null);
-  const [userInput, setUserInput] = useState("");
+  // Persist project/thread in localStorage
+  const [projectId, setProjectId] = useState<number | null>(() => {
+    const saved = localStorage.getItem('flowtion_project_id');
+    return saved ? parseInt(saved) : null;
+  });
+  const [threadId, setThreadId] = useState<number | null>(() => {
+    const saved = localStorage.getItem('flowtion_thread_id');
+    return saved ? parseInt(saved) : null;
+  });
   
+  const [userInput, setUserInput] = useState("");
   const breathing = useBreathingState();
   
-  // Initialize project and thread
-  const createProject = trpc.flowtion.createProject.useMutation();
-  const createThread = trpc.flowtion.createThread.useMutation();
-  const sendMessage = trpc.flowtion.sendMessage.useMutation();
+  // Save to localStorage when they change
+  useEffect(() => {
+    if (projectId) localStorage.setItem('flowtion_project_id', String(projectId));
+  }, [projectId]);
   
-  const { data: messages = [] } = trpc.flowtion.listMessages.useQuery(
+  useEffect(() => {
+    if (threadId) localStorage.setItem('flowtion_thread_id', String(threadId));
+  }, [threadId]);
+  
+  const { data: messages = [] } = trpc.flowtion.getMessages.useQuery(
     { threadId: threadId! },
     { enabled: !!threadId, refetchInterval: 2000 }
   );
@@ -29,34 +39,25 @@ export default function Workspace() {
     { enabled: !!threadId, refetchInterval: 2000 }
   );
 
-  useEffect(() => {
-    // Auto-create project and thread on mount
-    if (!projectId) {
-      createProject.mutate({ name: "Flowtion Workspace" }, {
-        onSuccess: (data) => {
-          setProjectId(data.id);
-          createThread.mutate({ projectId: data.id, title: "Main Space" }, {
-            onSuccess: (threadData) => {
-              setThreadId(threadData.id);
-            }
-          });
-        }
-      });
+  const sendMutation = trpc.flowtion.send.useMutation({
+    onSuccess: (data) => {
+      // Update project/thread IDs if this was the first message
+      if (!threadId) {
+        setProjectId(data.projectId);
+        setThreadId(data.threadId);
+      }
+      setUserInput("");
     }
-  }, []);
+  });
 
   const handleSend = () => {
-    if (!userInput.trim() || !projectId || !threadId) return;
+    if (!userInput.trim()) return;
     
     breathing.startBreathing();
-    sendMessage.mutate({
-      projectId,
-      threadId,
+    sendMutation.mutate({
+      projectId: projectId || undefined,
+      threadId: threadId || undefined,
       text: userInput,
-    }, {
-      onSuccess: () => {
-        setUserInput("");
-      }
     });
   };
 
@@ -80,13 +81,12 @@ export default function Workspace() {
         {/* Conversation Panel */}
         <div className="flex-1 flex flex-col border-r border-border">
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {!threadId ? (
-              <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : messages.length === 0 ? (
+            {messages.length === 0 ? (
               <div className="flex items-center justify-center h-full text-muted-foreground">
-                <p>Begin by speaking your intention...</p>
+                <div className="text-center space-y-2">
+                  <div className="text-6xl">✨</div>
+                  <p>No artifact yet. First breath creates the first form.</p>
+                </div>
               </div>
             ) : (
               messages.map((msg) => (
@@ -97,7 +97,7 @@ export default function Workspace() {
                         {msg.role === 'user' ? 'You' : 'Steward'}
                       </div>
                       <div className="text-sm whitespace-pre-wrap">{msg.text}</div>
-                      {msg.status !== 'done' && (
+                      {msg.status && msg.status !== 'done' && (
                         <div className="text-xs text-muted-foreground mt-2">
                           {msg.status}...
                         </div>
@@ -115,16 +115,21 @@ export default function Workspace() {
               <Input
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Speak your intention..."
-                disabled={!threadId || sendMessage.isPending}
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="What wants to emerge?"
+                disabled={sendMutation.isPending}
                 className="flex-1"
               />
               <Button
                 onClick={handleSend}
-                disabled={!threadId || !userInput.trim() || sendMessage.isPending}
+                disabled={!userInput.trim() || sendMutation.isPending}
               >
-                {sendMessage.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send'}
+                Send
               </Button>
             </div>
           </div>

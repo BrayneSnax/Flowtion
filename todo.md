@@ -33,3 +33,12 @@
 - [ ] Add documentation
 - [ ] Final testing
 - [ ] Deploy
+
+
+## Debugging & Fixes
+- [x] Identify cause of tRPC 400 error (auth issue with protectedProcedure)
+- [x] Fix API initialization issue (changed to publicProcedure, simplified router)
+- [x] Test project/thread creation (working! UI loads correctly)
+- [ ] Test full breathing cycle with message (getting 500 error)
+- [ ] Verify API keys are provided (OPENAI_API_KEY, GEMINI_API_KEY)
+- [ ] Debug breathing cycle failure
