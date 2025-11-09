@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useBreathingState } from "@/hooks/useBreathingState";
 import { BreathingIndicator } from "@/components/BreathingIndicator";
+import { supabase, type ArtifactVersion } from "@/lib/supabase";
 
 export default function Workspace() {
   // Persist project/thread in localStorage
@@ -19,6 +20,7 @@ export default function Workspace() {
   
   const [userInput, setUserInput] = useState("");
   const breathing = useBreathingState();
+  const [artifacts, setArtifacts] = useState<ArtifactVersion[]>([]);
   
   // Save to localStorage when they change
   useEffect(() => {
@@ -34,10 +36,54 @@ export default function Workspace() {
     { enabled: !!threadId, refetchInterval: 2000 }
   );
   
-  const { data: latestArtifact } = trpc.flowtion.getLatestArtifact.useQuery(
-    { threadId: threadId! },
-    { enabled: !!threadId, refetchInterval: 2000 }
-  );
+  // Subscribe to real-time artifact updates
+  useEffect(() => {
+    if (!threadId) return;
+
+    console.log('[Realtime] Subscribing to artifacts for thread', threadId);
+
+    // Fetch existing artifacts
+    supabase
+      .from('artifact_versions')
+      .select('*')
+      .eq('thread_id', threadId)
+      .order('v', { ascending: true })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('[Realtime] Error fetching artifacts:', error);
+        } else {
+          console.log('[Realtime] Loaded', data?.length || 0, 'existing artifacts');
+          setArtifacts(data || []);
+        }
+      });
+
+    // Subscribe to new artifacts
+    const channel = supabase
+      .channel(`artifacts-${threadId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'artifact_versions',
+          filter: `thread_id=eq.${threadId}`,
+        },
+        (payload) => {
+          console.log('[Realtime] New artifact received:', payload.new);
+          setArtifacts((prev) => [...prev, payload.new as ArtifactVersion]);
+        }
+      )
+      .subscribe((status) => {
+        console.log('[Realtime] Subscription status:', status);
+      });
+
+    return () => {
+      console.log('[Realtime] Unsubscribing from thread', threadId);
+      supabase.removeChannel(channel);
+    };
+  }, [threadId]);
+
+  const latestArtifact = artifacts.length > 0 ? artifacts[artifacts.length - 1] : null;
 
   const sendMutation = trpc.flowtion.send.useMutation({
     onSuccess: (data) => {

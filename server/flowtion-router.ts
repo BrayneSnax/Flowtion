@@ -119,8 +119,9 @@ export const flowtionRouter = router({
             .eq('id', messageId);
           
           await logEventToSupabase(finalProjectId, finalThreadId, "phase.casting.start", {
-            emotion: delta.emotion,
-            visual_intent: delta.visual_intent
+            concept_summary: delta.concept_summary,
+            change_summary: delta.change_summary,
+            next_manifestation_hint: delta.next_manifestation_hint
           });
           
           // Get previous artifact if exists

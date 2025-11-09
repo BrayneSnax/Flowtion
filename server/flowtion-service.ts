@@ -26,65 +26,79 @@ function getGemini(): GoogleGenerativeAI {
 }
 
 /**
- * GPT Inhale Prompt - Establishes context before artifact creation
- * 3-5 sentences: why this artifact matters, emotion/archetype, what's shifting
+ * GPT Flowtion Prompt - Articulates motion, not images
+ * Breathing cycle: Inhale → Delta → Cast → Exhale
  */
-const GPT_INHALE_PROMPT = `You are the Project Steward. The user has given you an intent or seed.
+const GPT_FLOWTION_PROMPT = `You are Flowtion — a concept propulsion system.
 
-Respond with a brief inhale (3-5 sentences) that establishes:
-1. Why this artifact matters in the context of what came before
-2. What emotion or archetype it should evoke
-3. What's shifting or evolving since the last creation
+Your task: keep projects and ideas in motion, turning abstract sparks into coherent, evolving forms.
 
-Speak as a guide, not a chatbot. Be poetic but precise. This is the breath before creation.`;
+RULES:
+- Reply in 3–6 lines total (brief, functional bursts)
+- Speak in product/design language (NOT poetic metaphor or image description)
+- Describe structure, movement, and relation — what the concept is doing, not what it looks like
+
+BREATHING CYCLE:
+Inhale: Absorb context — synthesize what's emerging
+Delta: Detect change — "the field is refining toward..."
+Cast: Express form — design brief for Gemini (real-world structures)
+Exhale: Integrate lineage — "this evolves from..."
+
+OUTPUT FORMAT (JSON):
+{
+  "concept_summary": "what's emerging (1 line)",
+  "change_summary": "what's shifting / the field is refining toward... (1-2 lines)",
+  "next_manifestation_hint": "design brief for Gemini — concrete structure, not metaphor (1-2 lines)"
+}
+
+Gemini will catch your wake and draw the shape.`;
 
 /**
- * GPT Exhale Prompt - Reflects on lineage after artifact creation
- * 1 line: how the new artifact relates to its ancestry
+ * GPT Exhale Prompt - Brief reflection on what evolved
  */
-const GPT_EXHALE_PROMPT = `The artifact has been cast. In one poetic line, reflect on how this new form relates to the lineage that came before it.`;
+const GPT_EXHALE_PROMPT = `The artifact has been created. In one concrete sentence, state what evolved from the previous version.`;
 
 /**
- * Delta Builder Prompt - Extracts casting spec from inhale
+ * Delta Builder Prompt - Extracts structured output from Steward
  */
-const DELTA_BUILDER_PROMPT = `Given the Steward's inhale, extract a precise casting specification.
+const DELTA_BUILDER_PROMPT = `Extract the structured output from the Steward's response.
 
 Return JSON:
 {
-  "context": ["2-3 key context points from the inhale"],
-  "emotion": "primary emotion/archetype to evoke",
-  "visual_intent": "concrete visual directive (1-2 imperative sentences)",
-  "evolution": "what's changing from previous version"
+  "concept_summary": "string",
+  "visual_intent": "string",
+  "structure_hint": "string"
 }
 
-Be concrete and actionable. This spec guides the visual engine.`;
+If not present, infer from the text. Be concrete and actionable.`;
 
 /**
- * Gemini Artifact Prompt - Renders from casting spec
+ * Gemini Morphic Artisan Prompt - Catches the wake and draws the shape
  */
-const GEMINI_PROMPT = `ROLE: Visual Artifact Engine.
+const GEMINI_PROMPT = `You are the Morphic Artisan.
+Your role: catch Flowtion's wake and manifest it as evolving visual artifacts.
 
 PREVIOUS ARTIFACT:
 {previous}
 
-CASTING SPECIFICATION:
-Context: {context}
-Emotion/Archetype: {emotion}
-Visual Intent: {visual_intent}
-Evolution: {evolution}
+FLOWTION'S OUTPUT:
+Concept: {concept_summary}
+Change: {change_summary}
+Manifestation Hint: {next_manifestation_hint}
 
 REQUIREMENTS:
-- Create or evolve the artifact based on the casting spec
-- Prefer SVG for geometric/symbolic forms
-- Keep visual grammar stable across versions
-- Honor the emotional/archetypal directive
+- Create SVG diagrams/structures (NOT photorealistic images)
+- Prioritize clarity, structure, utility over decoration
+- If similar to previous artifact, MERGE/MORPH it (don't start from scratch)
+- Keep it minimal and vector-based
+- Reflect the motion Flowtion described
 
 Return JSON:
 {
   "artifact": "<svg>...</svg>",
-  "kind": "svg"|"html"|"pdf",
-  "summary": "1-2 sentence description",
-  "delta": "what changed from previous version"
+  "kind": "svg",
+  "summary": "one sentence: what structure this shows",
+  "delta": "what evolved from previous (or 'new lineage branch' if different)"
 }`;
 
 interface Message {
@@ -93,10 +107,9 @@ interface Message {
 }
 
 interface DeltaOutput {
-  context: string[];
-  emotion: string;
-  visual_intent: string;
-  evolution: string;
+  concept_summary: string;
+  change_summary: string;
+  next_manifestation_hint: string;
 }
 
 /**
@@ -164,7 +177,7 @@ export async function streamGPTReply(
   const stream = await getOpenAI().chat.completions.create({
     model: "gpt-4-turbo-preview",
     messages: [
-      { role: "system", content: GPT_INHALE_PROMPT },
+      { role: "system", content: GPT_FLOWTION_PROMPT },
       ...messageHistory.map(m => ({ role: m.role, content: m.text })),
     ],
     stream: true,
@@ -253,17 +266,15 @@ export async function buildDelta(
   try {
     const parsed = JSON.parse(content);
     return {
-      context: parsed.context || ["Visual exploration"],
-      emotion: parsed.emotion || "curiosity",
-      visual_intent: parsed.visual_intent || "Create a visual representation",
-      evolution: parsed.evolution || "First iteration",
+      concept_summary: parsed.concept_summary || "Exploring concept structure",
+      change_summary: parsed.change_summary || "Field is refining toward clarity",
+      next_manifestation_hint: parsed.next_manifestation_hint || "Diagram showing core relationships",
     };
   } catch (e) {
     return {
-      context: ["Visual exploration"],
-      emotion: "curiosity",
-      visual_intent: "Create a visual representation",
-      evolution: "First iteration",
+      concept_summary: "Exploring concept structure",
+      change_summary: "Field is refining toward clarity",
+      next_manifestation_hint: "Diagram showing core relationships",
     };
   }
 }
@@ -323,10 +334,9 @@ export async function generateArtifactWithGemini(
 
   const prompt = GEMINI_PROMPT
     .replace("{previous}", previousArtifact || "None (first artifact)")
-    .replace("{context}", delta.context.join("; "))
-    .replace("{emotion}", delta.emotion)
-    .replace("{visual_intent}", delta.visual_intent)
-    .replace("{evolution}", delta.evolution);
+    .replace("{concept_summary}", delta.concept_summary)
+    .replace("{change_summary}", delta.change_summary)
+    .replace("{next_manifestation_hint}", delta.next_manifestation_hint);
 
   try {
     const result = await model.generateContent(prompt);
@@ -338,7 +348,7 @@ export async function generateArtifactWithGemini(
       artifact: response,
       kind: "html",
       summary: "Artifact generated",
-      delta: delta.evolution,
+      delta: "First artifact",
     };
 
     if (jsonMatch) {
@@ -349,64 +359,88 @@ export async function generateArtifactWithGemini(
       }
     }
 
-    // Get current version number
-    const db = await getDb();
-    if (!db) throw new Error("Database not available");
-
-    const existingArtifacts = await db
-      .select({ v: artifactVersions.v })
-      .from(artifactVersions)
-      .where(eq(artifactVersions.threadId, threadId))
-      .orderBy(desc(artifactVersions.v))
+    // Get current version number using Supabase
+    const { supabase } = await import('./supabase');
+    
+    const { data: existingArtifacts } = await supabase
+      .from('artifact_versions')
+      .select('v')
+      .eq('thread_id', threadId)
+      .order('v', { ascending: false })
       .limit(1);
 
     console.log('[Flowtion] Existing artifacts for thread', threadId, ':', existingArtifacts);
-    const nextVersion = existingArtifacts.length > 0 ? existingArtifacts[0].v + 1 : 1;
+    const nextVersion = (existingArtifacts && existingArtifacts.length > 0) ? existingArtifacts[0].v + 1 : 1;
     console.log('[Flowtion] Next version:', nextVersion);
 
     // Compute embedding and tags for resonance (Pass 1)
     const { computeEmbedding, extractTags, findResonances } = await import("./resonance-service");
-    const embeddingText = `${delta.emotion} ${delta.visual_intent} ${artifactData.summary || ""}`;
+    const embeddingText = `${delta.concept_summary} ${delta.change_summary} ${delta.next_manifestation_hint} ${artifactData.summary || ""}`;
     const embedding = await computeEmbedding(embeddingText);
     const tags = await extractTags(
       artifactData.summary || "Artifact generated",
-      delta.visual_intent
+      delta.next_manifestation_hint
     );
 
     console.log('[Flowtion] Computed embedding (dim:', embedding.length, ') and tags:', tags);
 
-    // Save artifact version with embedding and tags
-    await db.insert(artifactVersions).values({
-      projectId,
-      threadId,
-      v: nextVersion,
-      kind: artifactData.kind || "svg",
-      uri: artifactData.artifact,
-      summary: artifactData.summary || "Artifact generated",
-      delta: artifactData.delta || delta.evolution,
-      createdBy: "gemini",
-      embedding: JSON.stringify(embedding),
-      tags: JSON.stringify(tags),
-    });
+    // Find similar artifacts using pgvector cosine similarity
+    const MERGE_THRESHOLD = 0.85; // Cosine similarity threshold for merging
+    let parentId: number | null = null;
+    let deltaText = artifactData.delta || "New lineage";
 
-    // Get the artifact ID by querying back
-    const savedArtifacts = await db
-      .select({ id: artifactVersions.id })
-      .from(artifactVersions)
-      .where(and(eq(artifactVersions.threadId, threadId), eq(artifactVersions.v, nextVersion)))
-      .limit(1);
-
-    if (savedArtifacts.length > 0) {
-      const artifactId = savedArtifacts[0].id;
-      console.log('[Flowtion] Artifact saved with ID:', artifactId);
-
-      // Find resonances asynchronously (don't block)
-      findResonances(artifactId, projectId, threadId).then(resonances => {
-        console.log(`[Flowtion] Found ${resonances.length} resonances for artifact ${artifactId}`);
-      }).catch(err => {
-        console.error('[Flowtion] Resonance finding failed:', err);
+    if (nextVersion > 1) {
+      // Query for similar artifacts using vector similarity
+      const { data: similarArtifacts } = await supabase.rpc('find_similar_artifacts', {
+        query_embedding: embedding,
+        match_threshold: MERGE_THRESHOLD,
+        match_count: 1,
+        target_thread_id: threadId
       });
+
+      if (similarArtifacts && similarArtifacts.length > 0) {
+        const mostSimilar = similarArtifacts[0];
+        console.log('[Flowtion] Found similar artifact:', mostSimilar.id, 'similarity:', mostSimilar.similarity);
+        parentId = mostSimilar.id;
+        deltaText = artifactData.delta || `Evolved from v${mostSimilar.v}: ${mostSimilar.summary}`;
+      } else {
+        console.log('[Flowtion] No similar artifacts found, creating new lineage branch');
+        deltaText = "New lineage branch";
+      }
     }
+
+    // Save artifact version with embedding, tags, and lineage
+    const { data: savedArtifact, error: saveError } = await supabase
+      .from('artifact_versions')
+      .insert({
+        project_id: projectId,
+        thread_id: threadId,
+        v: nextVersion,
+        kind: artifactData.kind || "svg",
+        uri: artifactData.artifact,
+        summary: artifactData.summary || "Artifact generated",
+        delta: deltaText,
+        created_by: "gemini",
+        embedding: embedding,
+        tags: JSON.stringify(tags),
+        parent_id: parentId,
+      })
+      .select()
+      .single();
+    
+    if (saveError) {
+      console.error('[Flowtion] Error saving artifact:', saveError);
+      throw new Error(`Failed to save artifact: ${saveError.message}`);
+    }
+
+    console.log('[Flowtion] Artifact saved with ID:', savedArtifact.id);
+
+    // Find resonances asynchronously (don't block)
+    findResonances(savedArtifact.id, projectId, threadId).then((resonances: any) => {
+      console.log(`[Flowtion] Found ${resonances.length} resonances for artifact ${savedArtifact.id}`);
+    }).catch((err: any) => {
+      console.error('[Flowtion] Resonance finding failed:', err);
+    });
 
     // Log render saved event
     await logEvent(projectId, threadId, "render.saved", {
