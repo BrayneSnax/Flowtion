@@ -482,3 +482,38 @@ export async function processUserMessage(
     throw error;
   }
 }
+
+
+// Supabase helper functions
+export async function loadMessagesFromSupabase(threadId: number) {
+  const { supabase } = await import('./supabase');
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('thread_id', threadId)
+    .order('created_at', { ascending: true });
+  
+  if (error) throw new Error(`Failed to load messages: ${error.message}`);
+  
+  // Return in Message format expected by streamGPTReply
+  return (data || []).map((msg: any) => ({
+    role: msg.role as 'user' | 'assistant' | 'system',
+    text: msg.text
+  }));
+}
+
+export async function logEventToSupabase(projectId: number, threadId: number, eventType: string, payload: any) {
+  const { supabase } = await import('./supabase');
+  const { error } = await supabase
+    .from('events')
+    .insert({
+      project_id: projectId,
+      thread_id: threadId,
+      event_type: eventType,
+      payload
+    });
+  
+  if (error) {
+    console.error(`[Flowtion] Failed to log event ${eventType}:`, error);
+  }
+}

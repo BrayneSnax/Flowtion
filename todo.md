@@ -42,3 +42,33 @@
 - [ ] Test full breathing cycle with message (getting 500 error)
 - [ ] Verify API keys are provided (OPENAI_API_KEY, GEMINI_API_KEY)
 - [ ] Debug breathing cycle failure
+
+
+## Supabase Integration
+- [x] Install Supabase client libraries
+- [x] Request SUPABASE_URL and SUPABASE_ANON_KEY from user
+- [ ] Create Supabase schema with pgvector extension
+- [ ] Migrate tables (projects, threads, messages, artifacts, resonance)
+- [ ] Set up Row Level Security policies
+- [ ] Create storage bucket for artifacts
+- [ ] Update backend to use Supabase client instead of Drizzle
+- [ ] Add real-time subscriptions for messages
+- [ ] Add real-time subscriptions for artifacts
+- [ ] Update resonance service to use pgvector for embeddings
+- [ ] Test full breathing cycle with Supabase
+- [ ] Verify real-time updates work
+
+
+## Breathing Cycle State Machine Verification
+- [x] Confirm Supabase schema is applied (tables + pgvector)
+- [x] Update flowtion-router to use Supabase client
+- [x] Implement proper state machine with distinct phases
+- [x] Add timing for each phase (Inhale: 4s, Shaping: 2s, Cast: 8s, Exhale: 4s)
+- [x] Log each phase transition to events table
+- [x] Update message status at each phase
+- [ ] Add real-time subscriptions for messages
+- [ ] Add real-time subscriptions for artifacts
+- [ ] Test complete breathing cycle end-to-end
+- [ ] Verify events are logged in Supabase
+- [ ] Test resonance detection between artifacts
+- [ ] Verify pgvector similarity search works

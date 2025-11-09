@@ -42,7 +42,7 @@ export default function Workspace() {
   const sendMutation = trpc.flowtion.send.useMutation({
     onSuccess: (data) => {
       // Update project/thread IDs if this was the first message
-      if (!threadId) {
+      if (!threadId && data.projectId && data.threadId) {
         setProjectId(data.projectId);
         setThreadId(data.threadId);
       }
